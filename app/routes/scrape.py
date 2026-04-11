@@ -1,5 +1,7 @@
 """Scrape routes — search config form, background task trigger, HTMX status polling."""
-from typing import Optional
+import html as html_lib
+import threading
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse
@@ -14,6 +16,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 # Module-level scrape state — single background task at a time
+_scrape_lock = threading.Lock()
 _scrape_status: dict = {"running": False, "last_result": None, "error": None}
 
 
@@ -33,6 +36,7 @@ def _run_scrape_task(keywords: str, location: str, experience_level: Optional[st
         _scrape_status["error"] = str(e)
     finally:
         _scrape_status["running"] = False
+        _scrape_lock.release()
 
 
 @router.get("/scrape", response_class=HTMLResponse)
@@ -50,8 +54,8 @@ def scrape_page(request: Request, session: Session = Depends(get_session)):
 @router.post("/scrape/run", response_class=HTMLResponse)
 def scrape_run(
     background_tasks: BackgroundTasks,
-    keywords: str = Form(...),
-    location: str = Form(...),
+    keywords: Annotated[str, Form(min_length=1, max_length=200)],
+    location: Annotated[str, Form(min_length=1, max_length=200)],
     experience_level: str = Form(""),
     work_mode: str = Form(""),
     session: Session = Depends(get_session),
@@ -65,7 +69,7 @@ def scrape_run(
         is_active=True,
     )
 
-    if _scrape_status["running"]:
+    if not _scrape_lock.acquire(blocking=False):
         return HTMLResponse(
             '<div id="scrape-result" class="text-yellow-600">A scrape is already running.</div>'
         )
@@ -85,7 +89,7 @@ def scrape_status():
             ' class="text-blue-600 animate-pulse">Scraping in progress...</div>'
         )
     if _scrape_status["error"]:
-        error = _scrape_status["error"]
+        error = html_lib.escape(_scrape_status["error"])
         return HTMLResponse(
             f'<div id="scrape-result" class="text-red-600">Error: {error}</div>'
         )
