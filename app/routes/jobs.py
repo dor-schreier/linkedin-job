@@ -62,9 +62,9 @@ def jobs_list(
     template = "partials/job_list.html" if is_htmx else "jobs.html"
 
     return templates.TemplateResponse(
+        request,
         template,
         {
-            "request": request,
             "jobs": jobs,
             "total": total,
             "page": page,
