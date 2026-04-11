@@ -45,7 +45,10 @@ Plans:
   3. Each stored job carries: title, company, location, description, source, apply URL, scraped date
   4. Search configuration (keywords, location, experience level, work mode) is saved and pre-filled on next visit
   5. A scrape triggered from the browser returns immediately; progress is visible without blocking the page
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
+- [ ] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
 
 ### Phase 3: Web UI + API
 **Goal**: Users can browse, filter, and manage scraped jobs in the browser with full search config control
@@ -57,7 +60,10 @@ Plans:
   3. User can set a per-job status (Saved / Applied / Interviewing / Offer / Rejected) from the job list
   4. Jobs with a listed salary display the actual salary range; jobs without salary show nothing (AI estimate comes in Phase 4)
   5. Navigation links to Jobs, Profile, Search Config, and Watch Rules pages all resolve without 404s
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
+- [ ] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
 **UI hint**: yes
 
 ### Phase 4: Profile + AI Scoring
@@ -70,7 +76,10 @@ Plans:
   3. Each scored job shows a brief AI summary explaining why it is or isn't a good match
   4. Jobs without a listed salary display a Groq-estimated salary range labeled "Estimated"
   5. The profile page shows Groq-generated improvement recommendations after the user saves their profile
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
+- [ ] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
 **UI hint**: yes
 
 ### Phase 5: Watch Rules + Notifications
@@ -82,7 +91,10 @@ Plans:
   2. After a scrape completes, any newly matched jobs are flagged and a badge count appears in the nav
   3. User can view all watch-matched jobs in a dedicated section
   4. The badge count resets to zero after the user views the watch matches section
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
+- [ ] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
 **UI hint**: yes
 
 ## Progress
