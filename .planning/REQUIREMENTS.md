@@ -81,17 +81,46 @@
 
 ## Traceability
 
-*Populated during roadmap creation.*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmapper) | | |
+| SCRP-03 | Phase 1 | Pending |
+| SCRP-04 | Phase 1 | Pending |
+| SRCH-01 | Phase 2 | Pending |
+| SRCH-02 | Phase 2 | Pending |
+| SRCH-03 | Phase 2 | Pending |
+| SRCH-04 | Phase 2 | Pending |
+| SRCH-05 | Phase 2 | Pending |
+| SRCH-06 | Phase 2 | Pending |
+| SCRP-01 | Phase 2 | Pending |
+| SCRP-02 | Phase 2 | Pending |
+| JOBS-01 | Phase 3 | Pending |
+| JOBS-05 | Phase 3 | Pending |
+| JOBS-06 | Phase 3 | Pending |
+| JOBS-07 | Phase 3 | Pending |
+| UI-01 | Phase 3 | Pending |
+| UI-02 | Phase 3 | Pending |
+| UI-03 | Phase 3 | Pending |
+| UI-04 | Phase 3 | Pending |
+| PROF-01 | Phase 4 | Pending |
+| PROF-02 | Phase 4 | Pending |
+| PROF-03 | Phase 4 | Pending |
+| PROF-04 | Phase 4 | Pending |
+| JOBS-02 | Phase 4 | Pending |
+| JOBS-03 | Phase 4 | Pending |
+| JOBS-04 | Phase 4 | Pending |
+| WTCH-01 | Phase 5 | Pending |
+| WTCH-02 | Phase 5 | Pending |
+| WTCH-03 | Phase 5 | Pending |
+| WTCH-04 | Phase 5 | Pending |
+| WTCH-05 | Phase 5 | Pending |
+| WTCH-06 | Phase 5 | Pending |
+| WTCH-07 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 28 total
-- Mapped to phases: TBD
-- Unmapped: TBD
+- v1 requirements: 32 total
+- Mapped to phases: 32
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-11 after initial definition*
+*Last updated: 2026-04-11 after roadmap creation*
