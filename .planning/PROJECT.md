@@ -12,7 +12,9 @@ Surface the most relevant job opportunities for the user, deduplicated and AI-ra
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] SQLite database with WAL mode and full 5-table schema — Validated in Phase 1: Storage Foundation
+- [x] Repository layer owns all SQL; typed CRUD for all tables — Validated in Phase 1: Storage Foundation
+- [x] FastAPI app with lifespan DB init and health-check route — Validated in Phase 1: Storage Foundation
 
 ### Active
 
@@ -76,4 +78,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-11 after initialization*
+*Last updated: 2026-04-11 — Phase 1 complete (storage foundation)*
