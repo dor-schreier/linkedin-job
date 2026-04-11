@@ -62,8 +62,8 @@ Plans:
   5. Navigation links to Jobs, Profile, Search Config, and Watch Rules pages all resolve without 404s
 **Plans:** 2 plans
 Plans:
-- [x] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
-- [x] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
+- [ ] 03-01-PLAN.md — Jobs list route, repository filter extension, jobs.html + partials/job_list.html
+- [ ] 03-02-PLAN.md — Navigation wiring: pages router, placeholder templates, main.py router registration
 **UI hint**: yes
 
 ### Phase 4: Profile + AI Scoring
@@ -78,8 +78,8 @@ Plans:
   5. The profile page shows Groq-generated improvement recommendations after the user saves their profile
 **Plans:** 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
-- [ ] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
+- [ ] 04-01-PLAN.md — (to be planned)
+- [ ] 04-02-PLAN.md — (to be planned)
 **UI hint**: yes
 
 ### Phase 5: Watch Rules + Notifications
@@ -93,8 +93,8 @@ Plans:
   4. The badge count resets to zero after the user views the watch matches section
 **Plans:** 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
-- [ ] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
+- [ ] 05-01-PLAN.md — (to be planned)
+- [ ] 05-02-PLAN.md — (to be planned)
 **UI hint**: yes
 
 ## Progress
@@ -104,8 +104,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Storage Foundation | 0/2 | Not started | - |
-| 2. Scraper + Dedup Pipeline | 0/TBD | Not started | - |
-| 3. Web UI + API | 0/TBD | Not started | - |
+| 1. Storage Foundation | 2/2 | Complete | 2026-04-11 |
+| 2. Scraper + Dedup Pipeline | 2/2 | Complete | 2026-04-11 |
+| 3. Web UI + API | 0/2 | Not started | - |
 | 4. Profile + AI Scoring | 0/TBD | Not started | - |
 | 5. Watch Rules + Notifications | 0/TBD | Not started | - |
