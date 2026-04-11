@@ -1,0 +1,70 @@
+{% if jobs %}
+  {% for job in jobs %}
+  <div class="bg-white rounded-lg border border-gray-200 p-4 mb-3">
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex-1 min-w-0">
+        <p class="text-base font-bold text-gray-800 truncate">{{ job.title }}</p>
+        <p class="text-sm text-gray-600 mt-0.5">{{ job.company }} · {{ job.location or "Location not listed" }}</p>
+        <div class="flex flex-wrap items-center gap-2 mt-2">
+          <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{{ job.source }}</span>
+          {% if job.salary_min and job.salary_max %}
+          <span class="text-sm text-gray-700">
+            {{ job.salary_currency or "$" }}{{ "{:,.0f}".format(job.salary_min) }} – {{ "{:,.0f}".format(job.salary_max) }}
+          </span>
+          {% elif job.salary_min %}
+          <span class="text-sm text-gray-700">
+            {{ job.salary_currency or "$" }}{{ "{:,.0f}".format(job.salary_min) }}+
+          </span>
+          {% endif %}
+          <span class="text-xs text-gray-400">{{ job.scraped_at.strftime("%b %d, %Y") if job.scraped_at else "" }}</span>
+        </div>
+      </div>
+      <div class="flex flex-col items-end gap-2 shrink-0">
+        <select
+          hx-post="/jobs/{{ job.id }}/status"
+          hx-swap="none"
+          name="status"
+          aria-label="Job status for {{ job.title }}"
+          class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="" {% if not job.status or job.status.value == 'new' %}selected{% endif %}>— Set Status —</option>
+          <option value="saved" {% if job.status and job.status.value == 'saved' %}selected{% endif %}>Saved</option>
+          <option value="applied" {% if job.status and job.status.value == 'applied' %}selected{% endif %}>Applied</option>
+          <option value="interviewing" {% if job.status and job.status.value == 'interviewing' %}selected{% endif %}>Interviewing</option>
+          <option value="offer" {% if job.status and job.status.value == 'offer' %}selected{% endif %}>Offer</option>
+          <option value="rejected" {% if job.status and job.status.value == 'rejected' %}selected{% endif %}>Rejected</option>
+        </select>
+        {% if job.apply_url %}
+        <a href="{{ job.apply_url }}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 underline">View Job</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if has_more %}
+  <div class="text-center mt-4">
+    <button
+      hx-get="/jobs?page={{ page + 1 }}&status={{ filters.status }}&company={{ filters.company }}&salary_min={{ filters.salary_min }}"
+      hx-swap="beforeend"
+      hx-target="#job-list"
+      class="text-sm text-blue-600 border border-blue-600 rounded px-4 py-2 hover:bg-blue-50"
+    >
+      Load more
+    </button>
+  </div>
+  {% endif %}
+
+{% else %}
+  {% if filters.status or filters.company or filters.salary_min %}
+  <div class="text-center py-12">
+    <p class="text-base font-bold text-gray-800">No jobs found</p>
+    <p class="text-sm text-gray-500 mt-1">No jobs match your filters. Try clearing one or more filters.</p>
+  </div>
+  {% else %}
+  <div class="text-center py-12">
+    <p class="text-base font-bold text-gray-800">No jobs found</p>
+    <p class="text-sm text-gray-500 mt-1">Run a scrape to fetch jobs, or adjust your filters.</p>
+  </div>
+  {% endif %}
+{% endif %}
