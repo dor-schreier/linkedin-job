@@ -27,13 +27,34 @@ class JobRepository:
     def list_jobs(
         self,
         status: Optional[JobStatus] = None,
+        company: Optional[str] = None,
+        salary_min_filter: Optional[float] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Job]:
         q = self.session.query(Job)
         if status:
             q = q.filter(Job.status == status)
+        if company:
+            q = q.filter(Job.company.ilike(f"%{company}%"))
+        if salary_min_filter is not None:
+            q = q.filter(Job.salary_min >= salary_min_filter)
         return q.order_by(Job.scraped_at.desc()).offset(offset).limit(limit).all()
+
+    def count_jobs_filtered(
+        self,
+        status: Optional[JobStatus] = None,
+        company: Optional[str] = None,
+        salary_min_filter: Optional[float] = None,
+    ) -> int:
+        q = self.session.query(Job)
+        if status:
+            q = q.filter(Job.status == status)
+        if company:
+            q = q.filter(Job.company.ilike(f"%{company}%"))
+        if salary_min_filter is not None:
+            q = q.filter(Job.salary_min >= salary_min_filter)
+        return q.count()
 
     def update_job_status(self, job_id: int, status: JobStatus) -> Optional[Job]:
         job = self.session.get(Job, job_id)
