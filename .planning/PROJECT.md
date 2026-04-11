@@ -16,6 +16,11 @@ Surface the most relevant job opportunities for the user, deduplicated and AI-ra
 - [x] Repository layer owns all SQL; typed CRUD for all tables — Validated in Phase 1: Storage Foundation
 - [x] FastAPI app with lifespan DB init and health-check route — Validated in Phase 1: Storage Foundation
 
+### Validated
+
+- [x] JobSpy scraper service with dedup hashing and DB persistence — Validated in Phase 2: Scraper + Dedup Pipeline
+- [x] FastAPI scrape routes — GET/POST/status, HTMX polling UI, search config pre-fill — Validated in Phase 2: Scraper + Dedup Pipeline
+
 ### Active
 
 - [ ] User can define search parameters: keywords, location, job type, remote, company type
