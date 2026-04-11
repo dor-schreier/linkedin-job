@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Finder — Run Scrape</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-10">
+  <div class="max-w-xl mx-auto mt-8 p-6 bg-white rounded-lg shadow">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">Run Job Scrape</h1>
+
+    <form
+      hx-post="/scrape/run"
+      hx-target="#scrape-result"
+      hx-swap="outerHTML"
+      class="space-y-4"
+    >
+      <div>
+        <label for="keywords" class="block text-sm font-medium text-gray-700 mb-1">Keywords</label>
+        <input
+          id="keywords"
+          name="keywords"
+          type="text"
+          required
+          placeholder="e.g. software engineer"
+          value="{{ latest_config.keywords if latest_config else '' }}"
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div>
+        <label for="location" class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+        <input
+          id="location"
+          name="location"
+          type="text"
+          required
+          placeholder="e.g. New York"
+          value="{{ latest_config.location if latest_config else '' }}"
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div>
+        <label for="experience_level" class="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
+        <select
+          id="experience_level"
+          name="experience_level"
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="" {% if not latest_config or not latest_config.experience_level %}selected{% endif %}>Any</option>
+          <option value="entry" {% if latest_config and latest_config.experience_level == 'entry' %}selected{% endif %}>Entry</option>
+          <option value="mid" {% if latest_config and latest_config.experience_level == 'mid' %}selected{% endif %}>Mid</option>
+          <option value="senior" {% if latest_config and latest_config.experience_level == 'senior' %}selected{% endif %}>Senior</option>
+          <option value="director" {% if latest_config and latest_config.experience_level == 'director' %}selected{% endif %}>Director</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="work_mode" class="block text-sm font-medium text-gray-700 mb-1">Work Mode</label>
+        <select
+          id="work_mode"
+          name="work_mode"
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="" {% if not latest_config or not latest_config.work_mode %}selected{% endif %}>Any</option>
+          <option value="onsite" {% if latest_config and latest_config.work_mode == 'onsite' %}selected{% endif %}>Onsite</option>
+          <option value="hybrid" {% if latest_config and latest_config.work_mode == 'hybrid' %}selected{% endif %}>Hybrid</option>
+        </select>
+      </div>
+
+      <button
+        type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-sm transition-colors"
+      >
+        Run Scrape
+      </button>
+    </form>
+
+    <div class="mt-6">
+      {% if status.running %}
+        <div id="scrape-result" hx-get="/scrape/status" hx-trigger="every 2s" hx-swap="outerHTML" class="text-blue-600 animate-pulse">
+          Scraping in progress...
+        </div>
+      {% elif status.error %}
+        <div id="scrape-result" class="text-red-600">
+          Error: {{ status.error }}
+        </div>
+      {% elif status.last_result %}
+        <div id="scrape-result" class="text-green-600">
+          Done! Inserted {{ status.last_result.inserted }}, skipped {{ status.last_result.skipped }} (from {{ status.last_result.total_scraped }} scraped)
+        </div>
+      {% else %}
+        <div id="scrape-result" class="text-gray-500">
+          No scrape run yet.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
