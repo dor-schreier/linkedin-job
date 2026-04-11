@@ -29,7 +29,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. WAL mode and busy_timeout are configured at DB init — no "database is locked" errors under concurrent access
   3. The repository module provides typed read/write methods; no other file touches the `.db` directly
   4. A minimal health-check page is reachable in the browser (HTTP 200) confirming the server started
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — SQLite schema, WAL mode, ORM models, repository layer
+- [ ] 01-02-PLAN.md — FastAPI app with lifespan DB init and health-check route
 **UI hint**: yes
 
 ### Phase 2: Scraper + Dedup Pipeline
@@ -89,7 +92,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Storage Foundation | 0/TBD | Not started | - |
+| 1. Storage Foundation | 0/2 | Not started | - |
 | 2. Scraper + Dedup Pipeline | 0/TBD | Not started | - |
 | 3. Web UI + API | 0/TBD | Not started | - |
 | 4. Profile + AI Scoring | 0/TBD | Not started | - |
