@@ -50,16 +50,16 @@ Source: existing scrape.html uses `p-6` for card, `py-10` for body, `space-y-4` 
 
 ## Typography
 
+Weights in use: 400 (normal) and 700 (bold) — exactly 2 weights. Label role is distinguished from Body by `text-gray-700` color and `tracking-wide` letter-spacing, not by weight.
+
 | Role | Size | Weight | Line Height | Tailwind Class |
 |------|------|--------|-------------|----------------|
-| Body | 14px | 400 (normal) | 1.5 | text-sm |
-| Label | 14px | 500 (medium) | 1.4 | text-sm font-medium |
+| Body | 14px | 400 (normal) | 1.5 | text-sm font-normal |
+| Label | 14px | 400 (normal) | 1.4 | text-sm font-normal text-gray-700 tracking-wide |
 | Heading | 20px | 700 (bold) | 1.2 | text-xl font-bold |
 | Display | 24px | 700 (bold) | 1.2 | text-2xl font-bold |
 
-Source: scrape.html uses `text-2xl font-bold` for page heading, `text-sm font-medium` for form labels, `text-sm` for inputs. Pattern carried forward.
-
-Weights in use: normal (400) and bold (700). Medium (500) reserved for labels only — not a third weight for heading purposes.
+Source: scrape.html uses `text-2xl font-bold` for page heading, `text-sm` for inputs. Label distinction achieved through color (`text-gray-700`) and `tracking-wide` per revision — not a third font weight.
 
 ---
 
@@ -93,7 +93,7 @@ Additional semantic colors (read-only, no new accent budget):
 | Muted text | text-gray-500 | Empty state copy, secondary metadata |
 | Border | border-gray-300 | All input and card borders |
 | Body text | text-gray-800 | Primary readable text |
-| Secondary text | text-gray-700 | Labels, secondary metadata |
+| Secondary text / Label | text-gray-700 | Labels, secondary metadata (see Typography — Label role) |
 
 ---
 
@@ -107,16 +107,18 @@ Phase 3 introduces these new UI patterns. Each must be implemented as Jinja2 tem
 - bg-white, border-b border-gray-200, px-6 py-3
 - App name left: "Job Finder" text-lg font-bold text-gray-800
 - Nav links right: Jobs | Profile | Search Config | Watch Rules
-- Active link: text-blue-600 font-medium border-b-2 border-blue-600
+- Active link: text-blue-600 font-normal border-b-2 border-blue-600
 - Inactive link: text-gray-600 hover:text-gray-900
 - All 4 nav links must resolve (UI-03) — Profile and Watch Rules can be placeholder pages in Phase 3
 
 ### Job Card (list row)
 
+Primary visual anchor on the Jobs List page: the job card list. Job title is the dominant text element per card (`text-base font-bold text-gray-800`). All other card content is subordinate to the title in visual weight.
+
 Each job rendered as a card row in the jobs list:
 
 - bg-white rounded-lg border border-gray-200 p-4
-- Title: text-base font-semibold text-gray-800
+- Title: text-base font-bold text-gray-800
 - Company + Location: text-sm text-gray-600 (one line, "Company · Location")
 - Source badge: text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded (e.g. "LinkedIn")
 - Salary (if present): text-sm text-gray-700 (JOBS-05 — display actual value; no estimate in Phase 3)
@@ -159,7 +161,7 @@ Horizontal filter bar above job list, rendered as HTMX-enhanced form:
 
 - hx-get="/jobs" hx-trigger="change" hx-target="#job-list" hx-swap="innerHTML"
 - Filters: Status `<select>`, Company `<input type="text">`, Salary Min `<input type="number">`
-- Each filter: label + input, text-sm, same border/focus classes as form fields
+- Each filter: label + input, text-sm font-normal text-gray-700 tracking-wide (Label role), same border/focus classes as form fields
 - Reset button: text-sm text-gray-500 underline, clears all filters
 
 ### Pagination / Load More
@@ -172,13 +174,13 @@ Horizontal filter bar above job list, rendered as HTMX-enhanced form:
 
 ## Page Inventory
 
-| Page | Route | Template | Primary Action |
-|------|-------|----------|----------------|
-| Jobs List | /jobs | jobs.html | Filter jobs |
-| Search Config | /search-config | search_config.html (existing scrape.html, renamed/extended) | Run Scrape |
-| Profile (placeholder) | /profile | profile.html | — (Phase 4) |
-| Watch Rules (placeholder) | /watch-rules | watch_rules.html | — (Phase 5) |
-| Health | /health | health.html (existing) | — |
+| Page | Route | Template | Primary Action | Focal Point |
+|------|-------|----------|----------------|-------------|
+| Jobs List | /jobs | jobs.html | Filter jobs | Job card list — job title is dominant text element per card |
+| Search Config | /search-config | search_config.html (existing scrape.html, renamed/extended) | Run Scrape | "Run Scrape" CTA button |
+| Profile (placeholder) | /profile | profile.html | — (Phase 4) | — |
+| Watch Rules (placeholder) | /watch-rules | watch_rules.html | — (Phase 5) | — |
+| Health | /health | health.html (existing) | — | — |
 
 ---
 
