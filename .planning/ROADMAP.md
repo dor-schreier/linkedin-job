@@ -47,8 +47,8 @@ Plans:
   5. A scrape triggered from the browser returns immediately; progress is visible without blocking the page
 **Plans:** 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
-- [ ] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
+- [x] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
+- [x] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
 
 ### Phase 3: Web UI + API
 **Goal**: Users can browse, filter, and manage scraped jobs in the browser with full search config control
@@ -62,8 +62,8 @@ Plans:
   5. Navigation links to Jobs, Profile, Search Config, and Watch Rules pages all resolve without 404s
 **Plans:** 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
-- [ ] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
+- [x] 02-01-PLAN.md — Scraper service module (JobSpy call, normalization, dedup, CLI validation)
+- [x] 02-02-PLAN.md — Scrape route, search config form, background task, HTMX status polling
 **UI hint**: yes
 
 ### Phase 4: Profile + AI Scoring
