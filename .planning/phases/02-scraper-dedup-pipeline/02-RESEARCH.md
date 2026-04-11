@@ -368,17 +368,11 @@ def _scrape_task(keywords: str, location: str):
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **country_indeed value for target location**
-   - What we know: `country_indeed` must be an exact country name string for Indeed/Glassdoor to work correctly.
-   - What's unclear: User's target location/country is not defined yet in the project.
-   - Recommendation: Make `country_indeed` a field in `SearchConfig` model, or derive it from the `location` string. Default to `"USA"` with a comment.
+1. **country_indeed value for target location** — RESOLVED: defaults to `"USA"` as a hardcoded constant in `scraper.py`. Future enhancement: promote to a `SearchConfig` field.
 
-2. **results_wanted per site**
-   - What we know: LinkedIn caps at ~250/IP. Indeed/Glassdoor have higher caps.
-   - What's unclear: What value makes sense for this user's personal scraping cadence.
-   - Recommendation: Default `results_wanted=50` per site (150 total max). Make it a constant in `scraper.py` that can be adjusted.
+2. **results_wanted per site** — RESOLVED: `RESULTS_WANTED = 50` constant in `scraper.py` (150 total max across 3 sites), adjustable by editing the constant directly.
 
 ---
 
