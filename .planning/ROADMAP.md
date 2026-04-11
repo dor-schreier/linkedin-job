@@ -31,8 +31,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A minimal health-check page is reachable in the browser (HTTP 200) confirming the server started
 **Plans:** 2 plans
 Plans:
-- [ ] 01-01-PLAN.md — SQLite schema, WAL mode, ORM models, repository layer
-- [ ] 01-02-PLAN.md — FastAPI app with lifespan DB init and health-check route
+- [x] 01-01-PLAN.md — SQLite schema, WAL mode, ORM models, repository layer
+- [x] 01-02-PLAN.md — FastAPI app with lifespan DB init and health-check route
 **UI hint**: yes
 
 ### Phase 2: Scraper + Dedup Pipeline
