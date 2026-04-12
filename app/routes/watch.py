@@ -1,4 +1,5 @@
 """Watch rules CRUD + notifications read/count endpoints."""
+import html as html_lib
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form
@@ -22,7 +23,7 @@ def create_watch_rule(
 ):
     if rule_type not in ALLOWED_RULE_TYPES:
         return HTMLResponse(
-            f'<div class="text-red-600">Invalid rule_type: {rule_type}</div>',
+            f'<div class="text-red-600">Invalid rule_type: {html_lib.escape(rule_type)}</div>',
             status_code=400,
         )
     repo = JobRepository(db)
