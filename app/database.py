@@ -41,4 +41,13 @@ def get_session():
 def init_db():
     """Create all database tables defined in ORM models."""
     from app import models  # noqa: F401 — import models to register with Base.metadata
+    from sqlalchemy import text
     Base.metadata.create_all(bind=engine)
+    # Phase 4 migration: add ai_recommendations column if not present.
+    # SQLite ALTER TABLE ADD COLUMN is idempotent via try/except (no IF NOT EXISTS clause).
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE profile ADD COLUMN ai_recommendations TEXT"))
+            conn.commit()
+        except Exception:
+            pass  # Column already exists

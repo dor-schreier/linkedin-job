@@ -64,6 +64,27 @@ class JobRepository:
             self.session.refresh(job)
         return job
 
+    def update_job_scores(
+        self,
+        job_id: int,
+        fit_score: int,
+        fit_summary: str,
+        salary_estimated: Optional[str] = None,
+    ) -> Optional[Job]:
+        """Persist Groq scoring output. salary_estimated=None leaves existing value untouched."""
+        job = self.session.get(Job, job_id)
+        if job:
+            job.fit_score = fit_score
+            job.fit_summary = fit_summary
+            if salary_estimated is not None:
+                job.salary_estimated = salary_estimated
+            self.session.commit()
+            self.session.refresh(job)
+        return job
+
+    def get_job(self, job_id: int) -> Optional[Job]:
+        return self.session.get(Job, job_id)
+
     def count_jobs(self) -> int:
         return self.session.query(Job).count()
 
