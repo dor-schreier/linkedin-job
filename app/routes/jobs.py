@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.models import JobStatus
 from app.repository import JobRepository
+from app.routes.pages import _ctx
 from app.services import groq_service
 
 router = APIRouter()
@@ -75,23 +76,27 @@ def jobs_list(
 
     # Determine if this is an HTMX partial request
     is_htmx = request.headers.get("HX-Request") == "true"
-    template = "partials/job_list.html" if is_htmx else "jobs.html"
+
+    job_ctx = {
+        "jobs": jobs,
+        "total": total,
+        "page": page,
+        "has_more": has_more,
+        "filters": {
+            "status": status or "",
+            "company": company or "",
+            "salary_min": salary_min or "",
+        },
+        "job_statuses": [s.value for s in JobStatus],
+    }
+
+    if is_htmx:
+        return templates.TemplateResponse(request, "partials/job_list.html", job_ctx)
 
     return templates.TemplateResponse(
         request,
-        template,
-        {
-            "jobs": jobs,
-            "total": total,
-            "page": page,
-            "has_more": has_more,
-            "filters": {
-                "status": status or "",
-                "company": company or "",
-                "salary_min": salary_min or "",
-            },
-            "job_statuses": [s.value for s in JobStatus],
-        },
+        "jobs.html",
+        _ctx(db, "jobs", job_ctx),
     )
 
 

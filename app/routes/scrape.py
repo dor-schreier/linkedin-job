@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.repository import JobRepository
+from app.routes.pages import _ctx
 from app.scraper import run_scrape
 
 router = APIRouter()
@@ -47,7 +48,7 @@ def scrape_page(request: Request, session: Session = Depends(get_session)):
     return templates.TemplateResponse(
         request,
         "scrape.html",
-        {"request": request, "latest_config": latest_config, "status": _scrape_status},
+        _ctx(session, "scrape", {"latest_config": latest_config, "status": _scrape_status}),
     )
 
 
