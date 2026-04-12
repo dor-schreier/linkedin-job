@@ -23,9 +23,6 @@ _scrape_status: dict = {"running": False, "last_result": None, "error": None}
 
 def _run_scrape_task(keywords: str, location: str, experience_level: Optional[str]) -> None:
     """Background task: runs the scrape and updates _scrape_status."""
-    global _scrape_status
-    _scrape_status["running"] = True
-    _scrape_status["error"] = None
     try:
         result = run_scrape(keywords=keywords, location=location, experience_level=experience_level)
         if "error" in result:
@@ -75,6 +72,8 @@ def scrape_run(
             '<div id="scrape-result" class="text-yellow-600">A scrape is already running.</div>'
         )
 
+    _scrape_status["running"] = True
+    _scrape_status["error"] = None
     background_tasks.add_task(_run_scrape_task, keywords, location, experience_level or None)
     return HTMLResponse(
         '<div id="scrape-result" hx-get="/scrape/status" hx-trigger="every 2s" hx-swap="outerHTML"'
