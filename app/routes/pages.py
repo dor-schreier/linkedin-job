@@ -112,9 +112,11 @@ def watch_rules_page(request: Request, db: Session = Depends(get_session)):
 @router.get("/watch-matches", response_class=HTMLResponse)
 def watch_matches_page(request: Request, db: Session = Depends(get_session)):
     repo = JobRepository(db)
-    # Fetch BEFORE marking read so the page shows what was just new.
+    # Fetch unread first so the page can highlight new items, then mark read.
+    unread = repo.list_unread_notifications_with_jobs()
+    if unread:
+        repo.mark_notifications_read()
     rows = repo.list_all_notifications_with_jobs(limit=200)
-    repo.mark_notifications_read()
     # unread_count is recomputed inside _ctx AFTER the mark, so badge will be 0.
     return templates.TemplateResponse(
         request,
