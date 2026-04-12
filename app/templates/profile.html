@@ -6,6 +6,7 @@
   <title>Job Finder — Profile</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <style>.htmx-request { opacity: 0.5; transition: opacity 0.2s; }</style>
 </head>
 <body class="bg-gray-100 min-h-screen">
   <nav class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
@@ -17,9 +18,60 @@
       <a href="/watch-rules" class="text-sm text-gray-600 hover:text-gray-900">Watch Rules</a>
     </div>
   </nav>
+
   <div class="max-w-4xl mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold text-gray-800 mb-4">Profile</h1>
-    <p class="text-sm text-gray-500">Profile editing coming in Phase 4.</p>
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">Profile</h1>
+
+    <form method="post" action="/profile" class="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+      <div>
+        <label for="linkedin_url" class="block text-sm font-normal text-gray-700 mb-1">LinkedIn URL</label>
+        <input id="linkedin_url" name="linkedin_url" type="url"
+               value="{{ (profile.linkedin_url if profile else '') or '' }}"
+               placeholder="https://www.linkedin.com/in/yourname"
+               class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label for="current_title" class="block text-sm font-normal text-gray-700 mb-1">Current Title</label>
+        <input id="current_title" name="current_title" type="text"
+               value="{{ (profile.current_title if profile else '') or '' }}"
+               class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label for="target_title" class="block text-sm font-normal text-gray-700 mb-1">Target Title</label>
+        <input id="target_title" name="target_title" type="text"
+               value="{{ (profile.target_title if profile else '') or '' }}"
+               class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label for="years_experience" class="block text-sm font-normal text-gray-700 mb-1">Years of Experience</label>
+        <input id="years_experience" name="years_experience" type="number" min="0"
+               value="{{ (profile.years_experience if profile and profile.years_experience is not none else '') }}"
+               class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label for="skills" class="block text-sm font-normal text-gray-700 mb-1">Skills</label>
+        <textarea id="skills" name="skills" rows="4"
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">{{ (profile.skills if profile else '') or '' }}</textarea>
+      </div>
+      <button type="submit" class="bg-blue-600 text-white text-sm rounded px-4 py-2 hover:bg-blue-700">Save Profile</button>
+    </form>
+
+    <section class="mt-8 bg-white border border-gray-200 rounded-lg p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-gray-800">AI Insights</h2>
+        <button
+          hx-post="/profile/analyze"
+          hx-target="#ai-insights"
+          hx-swap="innerHTML"
+          hx-indicator="#ai-insights"
+          class="text-sm border border-blue-300 text-blue-700 rounded px-3 py-1 hover:bg-blue-50">
+          Analyze Profile
+        </button>
+      </div>
+      <div id="ai-insights">
+        {% include "partials/ai_insights.html" %}
+      </div>
+    </section>
   </div>
 </body>
 </html>

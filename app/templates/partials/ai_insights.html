@@ -1,0 +1,9 @@
+{% if bullets %}
+<ul class="list-disc list-inside space-y-1 text-sm text-gray-700">
+  {% for b in bullets %}
+  <li>{{ b }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-sm text-gray-500">No recommendations yet. Click "Analyze Profile" to generate suggestions.</p>
+{% endif %}
