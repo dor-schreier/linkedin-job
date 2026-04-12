@@ -152,6 +152,12 @@ class JobRepository:
         self.session.refresh(notif)
         return notif
 
+    def add_notification_no_commit(self, job_id: int, watch_rule_id: int) -> Notification:
+        """Add a notification without committing. Caller must commit after batch."""
+        notif = Notification(job_id=job_id, watch_rule_id=watch_rule_id)
+        self.session.add(notif)
+        return notif
+
     def count_unread_notifications(self) -> int:
         return (
             self.session.query(Notification)

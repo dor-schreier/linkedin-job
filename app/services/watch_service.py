@@ -43,8 +43,10 @@ def match_new_jobs_to_watch_rules(session: Session, new_job_ids: list[int]) -> i
                 continue
             if repo.notification_exists(job.id, rule.id):
                 continue
-            repo.add_notification(job_id=job.id, watch_rule_id=rule.id)
+            repo.add_notification_no_commit(job_id=job.id, watch_rule_id=rule.id)
             created += 1
+    if created:
+        session.commit()
     logger.info("Watch matching: %d notifications created for %d new jobs against %d rules",
                 created, len(jobs), len(rules))
     return created
