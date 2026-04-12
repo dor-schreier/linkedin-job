@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Scraper + Dedup Pipeline** - JobSpy → normalize → hash → INSERT OR IGNORE, validated at CLI
 - [ ] **Phase 3: Web UI + API** - FastAPI + Jinja2/HTMX — first working browser app, jobs list + search config
 - [ ] **Phase 4: Profile + AI Scoring** - Groq fit scoring (on-demand) + profile editor + salary estimation
-- [ ] **Phase 5: Watch Rules + Notifications** - Watch rule CRUD + post-scrape match flagging + nav badge
+- [x] **Phase 5: Watch Rules + Notifications** - Watch rule CRUD + post-scrape match flagging + nav badge (completed 2026-04-12)
 
 ## Phase Details
 
@@ -91,10 +91,10 @@ Plans:
   2. After a scrape completes, any newly matched jobs are flagged and a badge count appears in the nav
   3. User can view all watch-matched jobs in a dedicated section
   4. The badge count resets to zero after the user views the watch matches section
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 05-01-PLAN.md — (to be planned)
-- [ ] 05-02-PLAN.md — (to be planned)
+- [x] 05-01-PLAN.md — (to be planned)
+- [x] 05-02-PLAN.md — (to be planned)
 **UI hint**: yes
 
 ## Progress
@@ -108,4 +108,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Scraper + Dedup Pipeline | 2/2 | Complete | 2026-04-11 |
 | 3. Web UI + API | 0/2 | Not started | - |
 | 4. Profile + AI Scoring | 0/TBD | Not started | - |
-| 5. Watch Rules + Notifications | 0/TBD | Not started | - |
+| 5. Watch Rules + Notifications | 2/2 | Complete   | 2026-04-12 |

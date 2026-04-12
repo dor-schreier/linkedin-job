@@ -44,9 +44,9 @@
 - [ ] **WTCH-02**: User can create a watch rule matching by role keyword (title contains)
 - [ ] **WTCH-03**: User can create a watch rule matching by sector/industry tag
 - [ ] **WTCH-04**: After each scrape, newly matched jobs are flagged as "watched matches"
-- [ ] **WTCH-05**: Nav badge shows count of unread watch matches
-- [ ] **WTCH-06**: User can view all watch matches in a dedicated section
-- [ ] **WTCH-07**: User can manage (add / delete) watch rules from the UI
+- [x] **WTCH-05**: Nav badge shows count of unread watch matches
+- [x] **WTCH-06**: User can view all watch matches in a dedicated section
+- [x] **WTCH-07**: User can manage (add / delete) watch rules from the UI
 
 ### Web UI
 
@@ -112,9 +112,9 @@
 | WTCH-02 | Phase 5 | Pending |
 | WTCH-03 | Phase 5 | Pending |
 | WTCH-04 | Phase 5 | Pending |
-| WTCH-05 | Phase 5 | Pending |
-| WTCH-06 | Phase 5 | Pending |
-| WTCH-07 | Phase 5 | Pending |
+| WTCH-05 | Phase 5 | Complete |
+| WTCH-06 | Phase 5 | Complete |
+| WTCH-07 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 32 total
