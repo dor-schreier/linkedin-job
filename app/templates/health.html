@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Job Finder - Health Check</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <h1>Job Finder</h1>
-    <p>Status: {{ status }}</p>
-    <p>Database: {{ "OK" if db_exists else "MISSING" }}</p>
-    <p>Tables: {{ table_count }}</p>
-    <p>WAL Mode: {{ "ON" if wal_mode else "OFF" }}</p>
+<body class="bg-gray-100 min-h-screen">
+    {% include "partials/nav.html" %}
+    <div class="max-w-xl mx-auto px-4 py-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-4">Health Check</h1>
+        <p class="text-sm text-gray-700">Status: {{ status }}</p>
+        <p class="text-sm text-gray-700">Database: {{ "OK" if db_exists else "MISSING" }}</p>
+        <p class="text-sm text-gray-700">Tables: {{ table_count }}</p>
+        <p class="text-sm text-gray-700">WAL Mode: {{ "ON" if wal_mode else "OFF" }}</p>
+    </div>
 </body>
 </html>

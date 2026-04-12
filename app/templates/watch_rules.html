@@ -8,18 +8,46 @@
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
-  <nav class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-    <span class="text-lg font-bold text-gray-800">Job Finder</span>
-    <div class="flex gap-6">
-      <a href="/jobs" class="text-sm text-gray-600 hover:text-gray-900">Jobs</a>
-      <a href="/profile" class="text-sm text-gray-600 hover:text-gray-900">Profile</a>
-      <a href="/search-config" class="text-sm text-gray-600 hover:text-gray-900">Search Config</a>
-      <a href="/watch-rules" class="text-sm text-blue-600 font-normal border-b-2 border-blue-600 pb-0.5">Watch Rules</a>
-    </div>
-  </nav>
+  {% include "partials/nav.html" %}
   <div class="max-w-4xl mx-auto px-4 py-8">
     <h1 class="text-2xl font-bold text-gray-800 mb-4">Watch Rules</h1>
-    <p class="text-sm text-gray-500">Watch rule management coming in Phase 5.</p>
+    <p class="text-sm text-gray-500 mb-6">Rules run after every scrape. Matching jobs appear in <a href="/watch-matches" class="text-blue-600 underline">Matches</a>.</p>
+
+    <form action="/watch-rules/create" method="post" class="bg-white border border-gray-200 rounded-lg p-4 mb-6 flex flex-wrap gap-3 items-end">
+      <div>
+        <label class="block text-xs text-gray-700 mb-1">Rule type</label>
+        <select name="rule_type" class="border border-gray-300 rounded px-2 py-1 text-sm">
+          <option value="company">Company (exact)</option>
+          <option value="keyword">Keyword in title</option>
+          <option value="sector">Sector (description contains)</option>
+        </select>
+      </div>
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-xs text-gray-700 mb-1">Value</label>
+        <input type="text" name="value" required minlength="1" maxlength="300" class="w-full border border-gray-300 rounded px-2 py-1 text-sm" />
+      </div>
+      <button type="submit" class="bg-blue-600 text-white text-sm px-4 py-1.5 rounded hover:bg-blue-700">Add rule</button>
+    </form>
+
+    <div class="bg-white border border-gray-200 rounded-lg">
+      {% if rules %}
+        <ul class="divide-y divide-gray-200">
+          {% for rule in rules %}
+            <li class="p-3 flex items-center justify-between">
+              <div>
+                <span class="text-xs uppercase text-gray-500 mr-2">{{ rule.rule_type }}</span>
+                <span class="text-sm text-gray-800">{{ rule.value }}</span>
+              </div>
+              <form action="/watch-rules/{{ rule.id }}/delete" method="post">
+                <button type="submit" class="text-red-600 text-xs hover:underline">Delete</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="p-4 text-sm text-gray-500">No rules yet. Add one above.</p>
+      {% endif %}
+    </div>
   </div>
 </body>
 </html>
