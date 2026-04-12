@@ -4,100 +4,155 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Job Finder — Run Scrape</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            headline: ['Manrope', 'sans-serif'],
+            body: ['Inter', 'sans-serif'],
+            label: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            background: '#0f1117',
+            surface: '#1a1d27',
+            'surface-bright': '#252836',
+            'surface-container-lowest': '#12141e',
+            'surface-container-low': '#1e2130',
+            'surface-container': '#222538',
+            'surface-container-high': '#272a3d',
+            'surface-container-highest': '#2d3045',
+            'on-surface': '#e2e4f0',
+            'on-surface-variant': '#9da3bd',
+            outline: '#565d78',
+            'outline-variant': '#3a3f56',
+            primary: '#565e74',
+            'on-primary': '#ffffff',
+            'primary-container': '#2e3348',
+            'on-primary-container': '#c5cbdf',
+            'primary-dim': '#8891a8',
+            'primary-fixed-dim': '#3d4358',
+            secondary: '#7b8299',
+            'secondary-container': '#2a2f44',
+            'on-secondary-container': '#b8bdd0',
+            error: '#cf6679',
+            'on-error': '#ffffff',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+    body { font-family: 'Inter', sans-serif; }
+    h1, h2, h3, .font-headline { font-family: 'Manrope', sans-serif; }
+    .htmx-request { opacity: 0.5; transition: opacity 0.2s; }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-background text-on-surface min-h-screen">
   {% include "partials/nav.html" %}
-  <div class="max-w-xl mx-auto mt-8 p-6 bg-white rounded-lg shadow">
-    <h1 class="text-2xl font-bold text-gray-800 mb-6">Run Job Scrape</h1>
+  <div class="ml-64 min-h-screen">
+    <header class="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-8 py-4 border-b border-outline-variant/15 flex items-center justify-between">
+      <h2 class="text-xl font-bold font-headline">Run Scrape</h2>
+    </header>
 
-    <form
-      hx-post="/scrape/run"
-      hx-target="#scrape-result"
-      hx-swap="outerHTML"
-      class="space-y-4"
-    >
-      <div>
-        <label for="keywords" class="block text-sm font-medium text-gray-700 mb-1">Keywords</label>
-        <input
-          id="keywords"
-          name="keywords"
-          type="text"
-          required
-          placeholder="e.g. software engineer"
-          value="{{ latest_config.keywords if latest_config else '' }}"
-          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+    <div class="px-8 py-6 max-w-xl mx-auto">
+      <div class="bg-surface-container-lowest rounded-xl p-6">
+        <h1 class="text-2xl font-bold font-headline text-on-surface mb-6">Run Job Scrape</h1>
 
-      <div>
-        <label for="location" class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-        <input
-          id="location"
-          name="location"
-          type="text"
-          required
-          placeholder="e.g. New York"
-          value="{{ latest_config.location if latest_config else '' }}"
-          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      <div>
-        <label for="experience_level" class="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
-        <select
-          id="experience_level"
-          name="experience_level"
-          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <form
+          hx-post="/scrape/run"
+          hx-target="#scrape-result"
+          hx-swap="outerHTML"
+          class="space-y-4"
         >
-          <option value="" {% if not latest_config or not latest_config.experience_level %}selected{% endif %}>Any</option>
-          <option value="entry" {% if latest_config and latest_config.experience_level == 'entry' %}selected{% endif %}>Entry</option>
-          <option value="mid" {% if latest_config and latest_config.experience_level == 'mid' %}selected{% endif %}>Mid</option>
-          <option value="senior" {% if latest_config and latest_config.experience_level == 'senior' %}selected{% endif %}>Senior</option>
-          <option value="director" {% if latest_config and latest_config.experience_level == 'director' %}selected{% endif %}>Director</option>
-        </select>
+          <div>
+            <label for="keywords" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Keywords</label>
+            <input
+              id="keywords"
+              name="keywords"
+              type="text"
+              required
+              placeholder="e.g. software engineer"
+              value="{{ latest_config.keywords if latest_config else '' }}"
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface-bright transition-colors"
+            />
+          </div>
+
+          <div>
+            <label for="location" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Location</label>
+            <input
+              id="location"
+              name="location"
+              type="text"
+              required
+              placeholder="e.g. New York"
+              value="{{ latest_config.location if latest_config else '' }}"
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface-bright transition-colors"
+            />
+          </div>
+
+          <div>
+            <label for="experience_level" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Experience Level</label>
+            <select
+              id="experience_level"
+              name="experience_level"
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="" {% if not latest_config or not latest_config.experience_level %}selected{% endif %}>Any</option>
+              <option value="entry" {% if latest_config and latest_config.experience_level == 'entry' %}selected{% endif %}>Entry</option>
+              <option value="mid" {% if latest_config and latest_config.experience_level == 'mid' %}selected{% endif %}>Mid</option>
+              <option value="senior" {% if latest_config and latest_config.experience_level == 'senior' %}selected{% endif %}>Senior</option>
+              <option value="director" {% if latest_config and latest_config.experience_level == 'director' %}selected{% endif %}>Director</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="work_mode" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Work Mode</label>
+            <select
+              id="work_mode"
+              name="work_mode"
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="" {% if not latest_config or not latest_config.work_mode %}selected{% endif %}>Any</option>
+              <option value="onsite" {% if latest_config and latest_config.work_mode == 'onsite' %}selected{% endif %}>Onsite</option>
+              <option value="hybrid" {% if latest_config and latest_config.work_mode == 'hybrid' %}selected{% endif %}>Hybrid</option>
+            </select>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full bg-primary hover:opacity-90 text-on-primary font-bold py-2.5 px-4 rounded-lg text-sm transition-opacity flex items-center justify-center gap-2"
+          >
+            <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+            Run Scrape
+          </button>
+        </form>
+
+        <div class="mt-6">
+          {% if status.running %}
+            <div id="scrape-result" hx-get="/scrape/status" hx-trigger="every 2s" hx-swap="outerHTML" class="text-primary animate-pulse">
+              Scraping in progress...
+            </div>
+          {% elif status.error %}
+            <div id="scrape-result" class="text-error">
+              Error: {{ status.error }}
+            </div>
+          {% elif status.last_result %}
+            <div id="scrape-result" class="text-on-surface-variant">
+              Done! Inserted {{ status.last_result.inserted }}, skipped {{ status.last_result.skipped }} (from {{ status.last_result.total_scraped }} scraped)
+            </div>
+          {% else %}
+            <div id="scrape-result" class="text-outline">
+              No scrape run yet.
+            </div>
+          {% endif %}
+        </div>
       </div>
-
-      <div>
-        <label for="work_mode" class="block text-sm font-medium text-gray-700 mb-1">Work Mode</label>
-        <select
-          id="work_mode"
-          name="work_mode"
-          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="" {% if not latest_config or not latest_config.work_mode %}selected{% endif %}>Any</option>
-          <option value="onsite" {% if latest_config and latest_config.work_mode == 'onsite' %}selected{% endif %}>Onsite</option>
-          <option value="hybrid" {% if latest_config and latest_config.work_mode == 'hybrid' %}selected{% endif %}>Hybrid</option>
-        </select>
-      </div>
-
-      <button
-        type="submit"
-        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-sm transition-colors"
-      >
-        Run Scrape
-      </button>
-    </form>
-
-    <div class="mt-6">
-      {% if status.running %}
-        <div id="scrape-result" hx-get="/scrape/status" hx-trigger="every 2s" hx-swap="outerHTML" class="text-blue-600 animate-pulse">
-          Scraping in progress...
-        </div>
-      {% elif status.error %}
-        <div id="scrape-result" class="text-red-600">
-          Error: {{ status.error }}
-        </div>
-      {% elif status.last_result %}
-        <div id="scrape-result" class="text-green-600">
-          Done! Inserted {{ status.last_result.inserted }}, skipped {{ status.last_result.skipped }} (from {{ status.last_result.total_scraped }} scraped)
-        </div>
-      {% else %}
-        <div id="scrape-result" class="text-gray-500">
-          No scrape run yet.
-        </div>
-      {% endif %}
     </div>
   </div>
 </body>

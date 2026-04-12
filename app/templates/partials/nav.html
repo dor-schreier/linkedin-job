@@ -1,22 +1,54 @@
-{# Shared nav. Expects: active (str), unread_count (int) in template context. #}
-<nav class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-  <span class="text-lg font-bold text-gray-800">Job Finder</span>
-  <div class="flex gap-6 items-center">
+{# partials/nav.html — sidebar version #}
+<aside class="h-screen w-64 fixed left-0 top-0 bg-surface-container-low flex flex-col p-4 z-40">
+  <!-- Brand -->
+  <div class="mb-8">
+    <h1 class="text-lg font-extrabold font-headline text-on-surface">Job Finder</h1>
+  </div>
+
+  <!-- Nav links -->
+  <nav class="flex-1 space-y-1 text-sm">
     {% set items = [
-      ('jobs', '/jobs', 'Jobs'),
-      ('profile', '/profile', 'Profile'),
-      ('profile-optimizer', '/profile-optimizer', 'Profile Optimizer'),
-      ('search-config', '/search-config', 'Search Config'),
-      ('watch-rules', '/watch-rules', 'Watch Rules'),
+      ('jobs',              '/jobs',              'dashboard',    'Jobs'),
+      ('profile',           '/profile',           'person_search','Profile'),
+      ('profile-optimizer', '/profile-optimizer', 'auto_awesome', 'Profile Optimizer'),
+      ('search-config',     '/search-config',     'tune',         'Search Config'),
+      ('watch-rules',       '/watch-rules',       'rule',         'Watch Rules'),
     ] %}
-    {% for key, href, label in items %}
-      <a href="{{ href }}" class="text-sm {% if active == key %}text-blue-600 font-normal border-b-2 border-blue-600 pb-0.5{% else %}text-gray-600 hover:text-gray-900{% endif %}">{{ label }}</a>
+    {% for key, href, icon, label in items %}
+      <a href="{{ href }}"
+         class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
+                {% if active == key %}
+                  font-semibold text-on-surface bg-surface-container border-r-2 border-primary
+                {% else %}
+                  text-on-surface-variant hover:bg-surface-container hover:text-on-surface
+                {% endif %}">
+        <span class="material-symbols-outlined text-[20px]">{{ icon }}</span>
+        {{ label }}
+      </a>
     {% endfor %}
-    <a href="/watch-matches" class="relative text-sm {% if active == 'watch-matches' %}text-blue-600 font-normal border-b-2 border-blue-600 pb-0.5{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+
+    <!-- Matches with unread badge -->
+    <a href="/watch-matches"
+       class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
+              {% if active == 'watch-matches' %}
+                font-semibold text-on-surface bg-surface-container border-r-2 border-primary
+              {% else %}
+                text-on-surface-variant hover:bg-surface-container hover:text-on-surface
+              {% endif %}">
+      <span class="material-symbols-outlined text-[20px]">notifications_active</span>
       Matches
       {% if unread_count and unread_count > 0 %}
-        <span class="ml-1 inline-flex items-center justify-center text-xs font-bold text-white bg-red-600 rounded-full px-1.5 py-0.5 min-w-[1.25rem]">{{ unread_count }}</span>
+        <span class="ml-auto inline-flex items-center justify-center text-xs font-bold text-on-error bg-error rounded-full px-1.5 py-0.5 min-w-[1.25rem]">{{ unread_count }}</span>
       {% endif %}
     </a>
+  </nav>
+
+  <!-- Primary CTA at bottom -->
+  <div class="mt-auto pt-4">
+    <a href="/scrape"
+       class="w-full flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded-lg font-bold text-sm hover:opacity-90 transition-opacity">
+      <span class="material-symbols-outlined">add_task</span>
+      Find New Jobs
+    </a>
   </div>
-</nav>
+</aside>
