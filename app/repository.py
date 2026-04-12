@@ -167,3 +167,36 @@ class JobRepository:
         )
         self.session.commit()
         return count
+
+    def get_jobs_by_ids(self, job_ids: list[int]) -> list[Job]:
+        if not job_ids:
+            return []
+        return self.session.query(Job).filter(Job.id.in_(job_ids)).all()
+
+    def list_unread_notifications_with_jobs(self) -> list[tuple[Notification, Job, WatchRule]]:
+        return (
+            self.session.query(Notification, Job, WatchRule)
+            .join(Job, Notification.job_id == Job.id)
+            .join(WatchRule, Notification.watch_rule_id == WatchRule.id)
+            .filter(Notification.is_read == False)  # noqa: E712
+            .order_by(Notification.created_at.desc())
+            .all()
+        )
+
+    def list_all_notifications_with_jobs(self, limit: int = 200) -> list[tuple[Notification, Job, WatchRule]]:
+        return (
+            self.session.query(Notification, Job, WatchRule)
+            .join(Job, Notification.job_id == Job.id)
+            .join(WatchRule, Notification.watch_rule_id == WatchRule.id)
+            .order_by(Notification.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+    def notification_exists(self, job_id: int, watch_rule_id: int) -> bool:
+        return (
+            self.session.query(Notification)
+            .filter(Notification.job_id == job_id, Notification.watch_rule_id == watch_rule_id)
+            .first()
+            is not None
+        )
