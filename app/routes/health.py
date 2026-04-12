@@ -19,12 +19,14 @@ def health(request: Request, db: Session = Depends(get_session)):
     table_count = 0
     wal_mode = False
     if db_exists:
-        conn = sqlite3.connect("data/jobs.db")
-        tables = conn.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").fetchone()[0]
-        table_count = tables
-        mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
-        wal_mode = mode == "wal"
-        conn.close()
+        try:
+            conn = sqlite3.connect("data/jobs.db")
+            tables = conn.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").fetchone()[0]
+            table_count = tables
+            mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+            wal_mode = mode == "wal"
+        finally:
+            conn.close()
     return templates.TemplateResponse(request, "health.html", _ctx(db, "health", {
         "status": "ok",
         "db_exists": db_exists,
