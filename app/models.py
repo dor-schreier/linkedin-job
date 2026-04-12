@@ -55,6 +55,7 @@ class Profile(Base):
     current_title = Column(String(300), nullable=True)
     target_title = Column(String(300), nullable=True)
     years_experience = Column(Integer, nullable=True)
+    ai_recommendations = Column(Text, nullable=True)  # Phase 4: persisted Groq recommendations (newline-separated bullets)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
