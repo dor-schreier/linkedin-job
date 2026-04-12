@@ -120,6 +120,7 @@ def run_scrape(
 
         with SessionLocal() as session:
             repo = JobRepository(session)
+            inserted_ids: list[int] = []
 
             for _, row_series in df.iterrows():
                 row = row_series.to_dict()
@@ -138,21 +139,27 @@ def run_scrape(
                     skipped += 1
                     continue
 
-                repo.add_job(**normalized)
+                created = repo.add_job(**normalized)
+                inserted_ids.append(created.id)
                 inserted += 1
 
+            from app.services.watch_service import match_new_jobs_to_watch_rules
+            notifications_created = match_new_jobs_to_watch_rules(session, inserted_ids)
+
         logger.info(
-            "Scrape complete: total=%d inserted=%d skipped=%d remote_filtered=%d",
+            "Scrape complete: total=%d inserted=%d skipped=%d remote_filtered=%d notifications=%d",
             total_scraped,
             inserted,
             skipped,
             remote_filtered,
+            notifications_created,
         )
         return {
             "total_scraped": total_scraped,
             "inserted": inserted,
             "skipped": skipped,
             "remote_filtered": remote_filtered,
+            "notifications_created": notifications_created,
         }
 
     except Exception as e:
