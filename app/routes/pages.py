@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -122,6 +123,56 @@ def watch_matches_page(request: Request, db: Session = Depends(get_session)):
         request,
         "watch_matches.html",
         _ctx(db, "watch-matches", {"rows": rows}),
+    )
+
+
+@router.get("/profile-optimizer", response_class=HTMLResponse)
+def profile_optimizer_page(request: Request, db: Session = Depends(get_session)):
+    repo = JobRepository(db)
+    profile = repo.get_profile()
+    analysis = None
+    analyzed_at = None
+    if profile and profile.linkedin_analysis:
+        try:
+            analysis = json.loads(profile.linkedin_analysis)
+        except (json.JSONDecodeError, ValueError):
+            analysis = None
+        analyzed_at = profile.linkedin_analyzed_at
+    return templates.TemplateResponse(
+        request,
+        "profile_optimizer.html",
+        _ctx(db, "profile-optimizer", {"profile": profile, "analysis": analysis, "analyzed_at": analyzed_at}),
+    )
+
+
+@router.post("/profile-optimizer/analyze", response_class=HTMLResponse)
+def profile_optimizer_analyze(request: Request, db: Session = Depends(get_session)):
+    repo = JobRepository(db)
+    profile = repo.get_profile()
+    if not profile or not any([
+        profile.linkedin_url,
+        profile.skills,
+        profile.current_title,
+        profile.target_title,
+        profile.years_experience,
+    ]):
+        return HTMLResponse(
+            '<div class="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg p-4 text-sm">'
+            'Save your profile content on the <a href="/profile" class="underline">Profile page</a> before analyzing.'
+            "</div>"
+        )
+    result = groq_service.get_linkedin_profile_analysis(profile)
+    if not result.get("sections"):
+        return HTMLResponse(
+            '<div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 text-sm">'
+            "Analysis failed. Check your Groq API key and try again."
+            "</div>"
+        )
+    repo.upsert_profile_analysis(json.dumps(result))
+    return templates.TemplateResponse(
+        request,
+        "partials/linkedin_analysis.html",
+        {"analysis": result},
     )
 
 

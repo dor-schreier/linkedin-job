@@ -1,0 +1,56 @@
+{# LinkedIn Profile Analysis partial. Expects: analysis (dict) in context. #}
+{% if not analysis or not analysis.sections %}
+  <p class="text-sm text-gray-500">No analysis yet. Click Analyze Now.</p>
+{% else %}
+  {# Overall score badge #}
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-sm font-normal text-gray-700">Overall Score</span>
+    {% set score = analysis.overall_score %}
+    {% if score is not none %}
+      {% if score < 50 %}
+        <span class="text-2xl font-bold px-3 py-1 rounded-lg text-red-600 bg-red-50">{{ score }}/100</span>
+      {% elif score < 75 %}
+        <span class="text-2xl font-bold px-3 py-1 rounded-lg text-yellow-600 bg-yellow-50">{{ score }}/100</span>
+      {% else %}
+        <span class="text-2xl font-bold px-3 py-1 rounded-lg text-green-600 bg-green-50">{{ score }}/100</span>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  {# Top Priority callout #}
+  {% if analysis.top_priority %}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <div class="flex items-start gap-2">
+        <span class="text-blue-600 font-bold text-base">&#9889;</span>
+        <div>
+          <p class="text-sm font-bold text-blue-800 mb-1">Top Priority</p>
+          <p class="text-sm text-blue-700">{{ analysis.top_priority }}</p>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {# Section cards grid #}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+    {% for section in analysis.sections %}
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-bold text-sm text-gray-800">{{ section.name }}</span>
+          {% set sscore = section.score %}
+          {% if sscore < 50 %}
+            <span class="text-xs font-bold px-2 py-0.5 rounded text-red-600 bg-red-50">{{ sscore }}</span>
+          {% elif sscore < 75 %}
+            <span class="text-xs font-bold px-2 py-0.5 rounded text-yellow-600 bg-yellow-50">{{ sscore }}</span>
+          {% else %}
+            <span class="text-xs font-bold px-2 py-0.5 rounded text-green-600 bg-green-50">{{ sscore }}</span>
+          {% endif %}
+        </div>
+        <ul class="mt-2 space-y-1">
+          {% for task in section.tasks %}
+            <li class="text-sm text-gray-700">&bull; {{ task }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

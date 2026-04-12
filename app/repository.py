@@ -93,6 +93,17 @@ class JobRepository:
     def get_profile(self) -> Optional[Profile]:
         return self.session.query(Profile).first()
 
+    def upsert_profile_analysis(self, analysis_json: str) -> Optional[Profile]:
+        """Save linkedin analysis JSON and set analyzed_at timestamp."""
+        from datetime import datetime, timezone
+        profile = self.session.query(Profile).first()
+        if profile:
+            profile.linkedin_analysis = analysis_json
+            profile.linkedin_analyzed_at = datetime.now(timezone.utc)
+            self.session.commit()
+            self.session.refresh(profile)
+        return profile
+
     def upsert_profile(self, **kwargs) -> Profile:
         profile = self.session.query(Profile).first()
         if profile:

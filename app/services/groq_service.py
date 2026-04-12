@@ -133,6 +133,79 @@ def get_fit_score_and_salary(job, profile) -> dict[str, Any]:
         return dict(FIT_SAFE_FALLBACK)
 
 
+LINKEDIN_ANALYSIS_SYSTEM_PROMPT = (
+    "You are a LinkedIn profile optimization coach. Analyze the profile across exactly 8 sections "
+    "and return ONLY valid JSON, no other text, no markdown code fences.\n"
+    'Schema: {"sections": [{"name": "<section>", "score": <int 0-100>, "tasks": ["<task>", ...]}, ...], '
+    '"overall_score": <int 0-100>, "top_priority": "<single most impactful change>"}\n'
+    "The 8 sections MUST be: Headline, About / Summary, Experience Bullets, Skills Section, "
+    "Featured Section, Recommendations, Keyword Density, Profile Completeness.\n"
+    "Each section: score 0-100, 2-4 concrete actionable tasks.\n"
+    "overall_score: weighted average across sections.\n"
+    "top_priority: the single most impactful change to make first."
+)
+
+LINKEDIN_ANALYSIS_SAFE_FALLBACK: dict[str, Any] = {
+    "sections": [],
+    "overall_score": None,
+    "top_priority": None,
+}
+
+
+def _parse_linkedin_analysis_response(content: str) -> dict[str, Any]:
+    try:
+        data = json.loads(_strip_code_fence(content))
+        sections = data.get("sections")
+        if not isinstance(sections, list):
+            raise ValueError("sections is not a list")
+        for s in sections:
+            if not isinstance(s.get("name"), str):
+                raise ValueError("section missing name")
+            if not isinstance(s.get("score"), int):
+                raise ValueError("section score not int")
+            if not isinstance(s.get("tasks"), list):
+                raise ValueError("section tasks not list")
+        overall = data.get("overall_score")
+        if overall is not None:
+            overall = int(overall)
+        top = data.get("top_priority")
+        if top is not None:
+            top = str(top)
+        return {"sections": sections, "overall_score": overall, "top_priority": top}
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
+        logger.warning("Failed to parse Groq LinkedIn analysis response: %s", e)
+        return dict(LINKEDIN_ANALYSIS_SAFE_FALLBACK)
+
+
+def get_linkedin_profile_analysis(profile) -> dict[str, Any]:
+    """Analyze the user's LinkedIn profile across 8 sections and return structured improvement tasks.
+
+    Returns: dict with sections, overall_score, top_priority — or LINKEDIN_ANALYSIS_SAFE_FALLBACK on error.
+    """
+    user_prompt = (
+        f"LinkedIn URL: {getattr(profile, 'linkedin_url', None) or 'not provided'}\n"
+        f"Current Title: {getattr(profile, 'current_title', None) or 'n/a'}\n"
+        f"Target Title: {getattr(profile, 'target_title', None) or 'n/a'}\n"
+        f"Years of Experience: {getattr(profile, 'years_experience', None) or 'n/a'}\n"
+        f"Profile Content (skills/about): {getattr(profile, 'skills', None) or 'n/a'}"
+    )
+    try:
+        client = _get_client()
+        response = client.chat.completions.create(
+            model=RECOMMEND_MODEL,
+            messages=[
+                {"role": "system", "content": LINKEDIN_ANALYSIS_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=2048,
+        )
+        content = response.choices[0].message.content or ""
+        return _parse_linkedin_analysis_response(content)
+    except Exception as e:
+        logger.error("Groq LinkedIn analysis call failed: %s", e)
+        return dict(LINKEDIN_ANALYSIS_SAFE_FALLBACK)
+
+
 def get_profile_recommendations(profile) -> list[str]:
     """Return 3-5 actionable bullets to strengthen the profile.
 

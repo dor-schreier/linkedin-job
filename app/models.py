@@ -56,6 +56,8 @@ class Profile(Base):
     target_title = Column(String(300), nullable=True)
     years_experience = Column(Integer, nullable=True)
     ai_recommendations = Column(Text, nullable=True)  # Phase 4: persisted Groq recommendations (newline-separated bullets)
+    linkedin_analysis = Column(Text, nullable=True)  # JSON blob of last section-by-section LinkedIn profile analysis
+    linkedin_analyzed_at = Column(DateTime, nullable=True)  # timestamp of last LinkedIn profile analysis run
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 

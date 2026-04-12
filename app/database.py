@@ -51,3 +51,13 @@ def init_db():
             conn.commit()
         except Exception:
             pass  # Column already exists
+        try:
+            conn.execute(text("ALTER TABLE profile ADD COLUMN linkedin_analysis TEXT"))
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
+        try:
+            conn.execute(text("ALTER TABLE profile ADD COLUMN linkedin_analyzed_at DATETIME"))
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
