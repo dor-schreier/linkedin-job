@@ -39,6 +39,20 @@
         {% endif %}
       </div>
     </div>
+    <div class="mt-2 flex items-center gap-3">
+      <button
+        hx-post="/jobs/{{ job.id }}/score"
+        hx-target="#job-score-{{ job.id }}"
+        hx-swap="innerHTML"
+        hx-indicator="#job-score-{{ job.id }}"
+        class="text-xs text-blue-700 border border-blue-300 rounded px-2 py-0.5 hover:bg-blue-50">
+        {% if job.fit_score is not none %}Re-score{% else %}Score{% endif %}
+      </button>
+    </div>
+    <div id="job-score-{{ job.id }}">
+      {% set label = fit_label(job.fit_score) %}
+      {% include "partials/job_score.html" %}
+    </div>
   </div>
   {% endfor %}
 

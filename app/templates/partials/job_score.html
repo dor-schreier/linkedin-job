@@ -1,0 +1,18 @@
+{% if job.fit_score is not none %}
+  <div class="mt-2 border-t border-gray-100 pt-2 space-y-1">
+    <div class="flex items-center gap-2">
+      <span class="text-sm font-bold text-gray-800">Fit: {{ job.fit_score }}/100</span>
+      <span class="text-xs px-2 py-0.5 rounded
+        {% if label == 'Excellent' %}bg-green-100 text-green-800
+        {% elif label == 'Good' %}bg-blue-100 text-blue-800
+        {% elif label == 'Fair' %}bg-yellow-100 text-yellow-800
+        {% else %}bg-gray-100 text-gray-700{% endif %}">{{ label }}</span>
+    </div>
+    {% if job.fit_summary %}
+    <p class="text-xs text-gray-600">{{ job.fit_summary }}</p>
+    {% endif %}
+    {% if job.salary_estimated and not (job.salary_min and job.salary_max) %}
+    <p class="text-xs text-gray-700"><span class="font-bold">Estimated:</span> {{ job.salary_estimated }}</p>
+    {% endif %}
+  </div>
+{% endif %}

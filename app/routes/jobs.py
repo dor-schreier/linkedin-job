@@ -8,9 +8,25 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.models import JobStatus
 from app.repository import JobRepository
+from app.services import groq_service
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+
+
+def _fit_label(score):
+    if score is None:
+        return ""
+    if score >= 80:
+        return "Excellent"
+    if score >= 60:
+        return "Good"
+    if score >= 40:
+        return "Fair"
+    return "Poor"
+
+
+templates.env.globals["fit_label"] = _fit_label
 
 PAGE_SIZE = 50
 
@@ -76,6 +92,41 @@ def jobs_list(
             },
             "job_statuses": [s.value for s in JobStatus],
         },
+    )
+
+
+@router.post("/jobs/{job_id}/score", response_class=HTMLResponse)
+def score_job(job_id: int, request: Request, db: Session = Depends(get_session)):
+    if job_id <= 0:
+        raise HTTPException(status_code=422, detail="Invalid job_id")
+    repo = JobRepository(db)
+    job = repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    profile = repo.get_profile()
+    if not profile or not any([
+        profile.linkedin_url,
+        profile.skills,
+        profile.current_title,
+        profile.target_title,
+        profile.years_experience,
+    ]):
+        return HTMLResponse(
+            '<p class="text-xs text-gray-500">Save your profile first to score jobs.</p>'
+        )
+    result = groq_service.get_fit_score_and_salary(job, profile)
+    if result.get("fit_score") is not None:
+        repo.update_job_scores(
+            job_id=job.id,
+            fit_score=int(result["fit_score"]),
+            fit_summary=result.get("fit_summary") or "",
+            salary_estimated=result.get("salary_estimated"),
+        )
+        job = repo.get_job(job_id)
+    return templates.TemplateResponse(
+        request,
+        "partials/job_score.html",
+        {"job": job, "label": _fit_label(job.fit_score)},
     )
 
 
