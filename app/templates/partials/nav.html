@@ -1,0 +1,21 @@
+{# Shared nav. Expects: active (str), unread_count (int) in template context. #}
+<nav class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+  <span class="text-lg font-bold text-gray-800">Job Finder</span>
+  <div class="flex gap-6 items-center">
+    {% set items = [
+      ('jobs', '/jobs', 'Jobs'),
+      ('profile', '/profile', 'Profile'),
+      ('search-config', '/search-config', 'Search Config'),
+      ('watch-rules', '/watch-rules', 'Watch Rules'),
+    ] %}
+    {% for key, href, label in items %}
+      <a href="{{ href }}" class="text-sm {% if active == key %}text-blue-600 font-normal border-b-2 border-blue-600 pb-0.5{% else %}text-gray-600 hover:text-gray-900{% endif %}">{{ label }}</a>
+    {% endfor %}
+    <a href="/watch-matches" class="relative text-sm {% if active == 'watch-matches' %}text-blue-600 font-normal border-b-2 border-blue-600 pb-0.5{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+      Matches
+      {% if unread_count and unread_count > 0 %}
+        <span class="ml-1 inline-flex items-center justify-center text-xs font-bold text-white bg-red-600 rounded-full px-1.5 py-0.5 min-w-[1.25rem]">{{ unread_count }}</span>
+      {% endif %}
+    </a>
+  </div>
+</nav>

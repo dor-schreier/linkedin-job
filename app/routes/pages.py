@@ -14,6 +14,14 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
+def _ctx(db: Session, active: str, extra: Optional[dict] = None) -> dict:
+    repo = JobRepository(db)
+    base = {"active": active, "unread_count": repo.count_unread_notifications()}
+    if extra:
+        base.update(extra)
+    return base
+
+
 @router.get("/search-config", response_class=HTMLResponse)
 def search_config(request: Request, db: Session = Depends(get_session)):
     repo = JobRepository(db)
@@ -23,7 +31,7 @@ def search_config(request: Request, db: Session = Depends(get_session)):
     return templates.TemplateResponse(
         request,
         "search_config.html",
-        {"latest_config": latest_config, "status": _scrape_status},
+        _ctx(db, "search-config", {"latest_config": latest_config, "status": _scrape_status}),
     )
 
 
@@ -35,7 +43,7 @@ def profile_page(request: Request, db: Session = Depends(get_session)):
     return templates.TemplateResponse(
         request,
         "profile.html",
-        {"profile": profile, "bullets": bullets},
+        _ctx(db, "profile", {"profile": profile, "bullets": bullets}),
     )
 
 
@@ -91,8 +99,28 @@ def profile_analyze(request: Request, db: Session = Depends(get_session)):
 
 
 @router.get("/watch-rules", response_class=HTMLResponse)
-def watch_rules_page(request: Request):
-    return templates.TemplateResponse(request, "watch_rules.html")
+def watch_rules_page(request: Request, db: Session = Depends(get_session)):
+    repo = JobRepository(db)
+    rules = repo.list_watch_rules(active_only=True)
+    return templates.TemplateResponse(
+        request,
+        "watch_rules.html",
+        _ctx(db, "watch-rules", {"rules": rules}),
+    )
+
+
+@router.get("/watch-matches", response_class=HTMLResponse)
+def watch_matches_page(request: Request, db: Session = Depends(get_session)):
+    repo = JobRepository(db)
+    # Fetch BEFORE marking read so the page shows what was just new.
+    rows = repo.list_all_notifications_with_jobs(limit=200)
+    repo.mark_notifications_read()
+    # unread_count is recomputed inside _ctx AFTER the mark, so badge will be 0.
+    return templates.TemplateResponse(
+        request,
+        "watch_matches.html",
+        _ctx(db, "watch-matches", {"rows": rows}),
+    )
 
 
 def _split_bullets(text: Optional[str]) -> list:
