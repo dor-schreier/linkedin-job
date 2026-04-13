@@ -186,8 +186,8 @@ def run_scrape(
                             from app.services.groq_service import get_enhanced_fit_score
                             score_result = get_enhanced_fit_score(created, profile)
                             if score_result is not None:
-                                created.fit_score = score_result.get("fit_score")
-                                created.fit_summary = score_result.get("fit_summary")
+                                created.fit_score = score_result.get("overall_score")
+                                created.fit_summary = score_result.get("summary")
                                 created.score_breakdown_json = json.dumps(score_result)
                                 created.salary_estimated = score_result.get("salary_estimated")
                                 session.commit()
