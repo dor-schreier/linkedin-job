@@ -31,6 +31,13 @@ def create_watch_rule(
     return RedirectResponse("/watch-rules", status_code=303)
 
 
+@router.post("/watch-rules/{rule_id}/toggle")
+def toggle_watch_rule(rule_id: int, db: Session = Depends(get_session)):
+    repo = JobRepository(db)
+    repo.toggle_watch_rule(rule_id)
+    return RedirectResponse("/watch-rules", status_code=303)
+
+
 @router.post("/watch-rules/{rule_id}/delete")
 def delete_watch_rule(rule_id: int, db: Session = Depends(get_session)):
     repo = JobRepository(db)

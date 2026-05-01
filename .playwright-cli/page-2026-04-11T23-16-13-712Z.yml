@@ -1,0 +1,37 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]: Job Finder
+    - generic [ref=e4]:
+      - link "Jobs" [ref=e5] [cursor=pointer]:
+        - /url: /jobs
+      - link "Profile" [ref=e6] [cursor=pointer]:
+        - /url: /profile
+      - link "Search Config" [ref=e7] [cursor=pointer]:
+        - /url: /search-config
+      - link "Watch Rules" [ref=e8] [cursor=pointer]:
+        - /url: /watch-rules
+  - generic [ref=e9]:
+    - heading "Jobs" [level=1] [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: Status
+        - combobox "Status" [ref=e14]:
+          - option "All Statuses" [selected]
+          - option "New"
+          - option "Saved"
+          - option "Applied"
+          - option "Interviewing"
+          - option "Offer"
+          - option "Rejected"
+      - generic [ref=e15]:
+        - generic [ref=e16]: Company
+        - textbox "Company" [ref=e17]:
+          - /placeholder: Filter by company
+      - generic [ref=e18]:
+        - generic [ref=e19]: Min Salary
+        - spinbutton "Min Salary" [ref=e20]
+      - link "Reset" [ref=e21] [cursor=pointer]:
+        - /url: /jobs
+    - generic [ref=e540]:
+      - paragraph [ref=e541]: No jobs found
+      - paragraph [ref=e542]: No jobs match your filters. Try clearing one or more filters.

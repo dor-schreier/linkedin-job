@@ -1,0 +1,41 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]: Job Finder
+    - generic [ref=e4]:
+      - link "Jobs" [ref=e5] [cursor=pointer]:
+        - /url: /jobs
+      - link "Profile" [ref=e6] [cursor=pointer]:
+        - /url: /profile
+      - link "Search Config" [ref=e7] [cursor=pointer]:
+        - /url: /search-config
+      - link "Watch Rules" [ref=e8] [cursor=pointer]:
+        - /url: /watch-rules
+  - generic [ref=e10]:
+    - heading "Run Job Scrape" [level=1] [ref=e11]
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: Keywords
+        - textbox "Keywords" [ref=e15]:
+          - /placeholder: e.g. software engineer
+          - text: team lead
+      - generic [ref=e16]:
+        - generic [ref=e17]: Location
+        - textbox "Location" [ref=e18]:
+          - /placeholder: e.g. New York
+          - text: tel aviv
+      - generic [ref=e19]:
+        - generic [ref=e20]: Experience Level
+        - combobox "Experience Level" [ref=e21]:
+          - option "Any"
+          - option "Entry"
+          - option "Mid"
+          - option "Senior" [selected]
+          - option "Director"
+      - generic [ref=e22]:
+        - generic [ref=e23]: Work Mode
+        - combobox "Work Mode" [ref=e24]:
+          - option "Any" [selected]
+          - option "Onsite"
+          - option "Hybrid"
+      - button "Run Scrape" [ref=e25] [cursor=pointer]
+    - generic [ref=e27]: No scrape run yet.

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Finder — CV: {{ cv.full_name }}</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { headline: ['Manrope', 'sans-serif'], body: ['Inter', 'sans-serif'] },
+          colors: {
+            background: '#0f1117', surface: '#1a1d27', 'surface-bright': '#252836',
+            'surface-container-lowest': '#12141e', 'surface-container-low': '#1e2130',
+            'surface-container': '#222538', 'surface-container-high': '#272a3d',
+            'surface-container-highest': '#2d3045', 'on-surface': '#e2e4f0',
+            'on-surface-variant': '#9da3bd', outline: '#565d78', 'outline-variant': '#3a3f56',
+            primary: '#565e74', 'on-primary': '#ffffff', 'primary-container': '#2e3348',
+            'on-primary-container': '#c5cbdf', 'primary-dim': '#8891a8',
+            secondary: '#7b8299', 'secondary-container': '#2a2f44',
+            error: '#cf6679', 'on-error': '#ffffff',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+    body { font-family: 'Inter', sans-serif; }
+    h1, h2, h3, .font-headline { font-family: 'Manrope', sans-serif; }
+  </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+  {% include "partials/nav.html" %}
+
+  <div id="app-content" class="min-h-screen" style="margin-left: 256px">
+    <header class="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-8 py-4 border-b border-outline-variant/15 flex items-center justify-between">
+      <div>
+        <a href="/cv/export" class="text-xs text-on-surface-variant hover:text-on-surface mb-1 inline-flex items-center gap-1">
+          <span class="material-symbols-outlined text-[14px]">arrow_back</span> All CVs
+        </a>
+        <h1 class="text-xl font-extrabold font-headline text-on-surface">{{ cv.full_name }}</h1>
+        {% if cv.headline %}<p class="text-sm text-on-surface-variant mt-0.5">{{ cv.headline }}</p>{% endif %}
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="/cv/download/pdf?profile_url={{ profile_url | urlencode }}"
+           class="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity">
+          <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>Download PDF
+        </a>
+        <a href="/cv/download/json?profile_url={{ profile_url | urlencode }}"
+           class="flex items-center gap-2 px-4 py-2 bg-surface-container-high text-on-surface-variant rounded-xl text-sm hover:text-on-surface hover:bg-surface-container-highest transition-colors">
+          <span class="material-symbols-outlined text-[18px]">data_object</span>JSON
+        </a>
+      </div>
+    </header>
+
+    <main class="px-8 py-8 max-w-4xl">
+
+      <!-- Contact strip -->
+      <div class="flex flex-wrap gap-3 mb-8 text-sm text-on-surface-variant">
+        {% if cv.location %}<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">location_on</span>{{ cv.location }}</span>{% endif %}
+        {% if cv.email %}<a href="mailto:{{ cv.email }}" class="flex items-center gap-1 hover:text-on-surface"><span class="material-symbols-outlined text-[16px]">mail</span>{{ cv.email }}</a>{% endif %}
+        {% if cv.phone %}<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">phone</span>{{ cv.phone }}</span>{% endif %}
+        {% if cv.profile_url %}<a href="{{ cv.profile_url }}" target="_blank" class="flex items-center gap-1 hover:text-on-surface"><span class="material-symbols-outlined text-[16px]">link</span>LinkedIn</a>{% endif %}
+      </div>
+
+      <!-- Summary -->
+      {% if cv.about %}
+      <section class="mb-8">
+        <h2 class="font-headline font-bold text-base text-on-surface uppercase tracking-wider mb-3 border-b border-outline-variant/30 pb-2">Summary</h2>
+        <p class="text-sm text-on-surface-variant leading-relaxed">{{ cv.about }}</p>
+      </section>
+      {% endif %}
+
+      <!-- Experience -->
+      {% if cv.experience %}
+      <section class="mb-8">
+        <h2 class="font-headline font-bold text-base text-on-surface uppercase tracking-wider mb-3 border-b border-outline-variant/30 pb-2">Experience</h2>
+        <div class="space-y-5">
+          {% for exp in cv.experience %}
+          <div>
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <div class="font-semibold text-on-surface">{{ exp.title }}{% if exp.company %} · <span class="text-primary-dim">{{ exp.company }}</span>{% endif %}</div>
+                {% if exp.location %}<div class="text-xs text-on-surface-variant mt-0.5">{{ exp.location }}{% if exp.employment_type %} · {{ exp.employment_type }}{% endif %}</div>{% endif %}
+              </div>
+              <div class="text-xs text-on-surface-variant shrink-0 mt-0.5">
+                {{ exp.start_date or '' }}{% if exp.start_date %} – {% endif %}{{ 'Present' if exp.is_current else (exp.end_date or '') }}
+              </div>
+            </div>
+            {% if exp.description %}
+            <p class="text-sm text-on-surface-variant mt-2 leading-relaxed whitespace-pre-line">{{ exp.description }}</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Education -->
+      {% if cv.education %}
+      <section class="mb-8">
+        <h2 class="font-headline font-bold text-base text-on-surface uppercase tracking-wider mb-3 border-b border-outline-variant/30 pb-2">Education</h2>
+        <div class="space-y-3">
+          {% for edu in cv.education %}
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <div class="font-semibold text-on-surface">{{ edu.school }}</div>
+              {% if edu.degree or edu.field_of_study %}
+              <div class="text-xs text-on-surface-variant">{{ edu.degree or '' }}{% if edu.degree and edu.field_of_study %}, {% endif %}{{ edu.field_of_study or '' }}</div>
+              {% endif %}
+            </div>
+            <div class="text-xs text-on-surface-variant shrink-0">{{ edu.start_year or '' }}{% if edu.start_year %} – {% endif %}{{ edu.end_year or '' }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Skills -->
+      {% if cv.skills %}
+      <section class="mb-8">
+        <h2 class="font-headline font-bold text-base text-on-surface uppercase tracking-wider mb-3 border-b border-outline-variant/30 pb-2">Skills</h2>
+        <div class="flex flex-wrap gap-2">
+          {% for skill in cv.skills %}
+          <span class="px-3 py-1 bg-primary-container text-on-primary-container rounded-full text-xs font-medium">{{ skill.skill_name }}</span>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Certifications -->
+      {% if cv.certifications %}
+      <section class="mb-8">
+        <h2 class="font-headline font-bold text-base text-on-surface uppercase tracking-wider mb-3 border-b border-outline-variant/30 pb-2">Certifications</h2>
+        <div class="space-y-2">
+          {% for cert in cv.certifications %}
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <div class="font-semibold text-on-surface text-sm">{{ cert.name }}</div>
+              {% if cert.issuing_org %}<div class="text-xs text-on-surface-variant">{{ cert.issuing_org }}</div>{% endif %}
+            </div>
+            {% if cert.issue_date %}<div class="text-xs text-on-surface-variant shrink-0">{{ cert.issue_date }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Languages -->
+      {% if cv.languages %}
+      <section class="mb-8">
+        <h2 class="font-headline font-bold text-base text-on-surface uppercase tracking-wider mb-3 border-b border-outline-variant/30 pb-2">Languages</h2>
+        <div class="flex flex-wrap gap-2">
+          {% for lang in cv.languages %}
+          <span class="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full text-xs">{{ lang.language }}{% if lang.proficiency %} · {{ lang.proficiency }}{% endif %}</span>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Projects -->
+      {% if cv.projects %}
+      <section class="mb-8">
+        <h2 class="font-headline font-bold text-base text-on-surface uppercase tracking-wider mb-3 border-b border-outline-variant/30 pb-2">Projects</h2>
+        <div class="space-y-3">
+          {% for proj in cv.projects %}
+          <div>
+            <div class="font-semibold text-on-surface text-sm">{% if proj.url %}<a href="{{ proj.url }}" target="_blank" class="hover:text-primary-dim">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}</div>
+            {% if proj.description %}<p class="text-xs text-on-surface-variant mt-1">{{ proj.description }}</p>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Volunteer -->
+      {% if cv.volunteer %}
+      <section class="mb-8">
+        <h2 class="font-headline font-bold text-base text-on-surface uppercase tracking-wider mb-3 border-b border-outline-variant/30 pb-2">Volunteer</h2>
+        <div class="space-y-2">
+          {% for vol in cv.volunteer %}
+          <div class="text-sm">
+            <span class="font-semibold text-on-surface">{{ vol.role }}</span>
+            {% if vol.organization %} · <span class="text-on-surface-variant">{{ vol.organization }}</span>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Generated at -->
+      <div class="text-xs text-on-surface-variant/50 mt-8">Generated {{ cv.cv_meta.generated_at[:10] if cv.cv_meta.generated_at else '' }}</div>
+
+    </main>
+  </div>
+</body>
+</html>

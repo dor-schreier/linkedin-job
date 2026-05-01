@@ -1,0 +1,43 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]: Job Finder
+    - generic [ref=e4]:
+      - link "Jobs" [ref=e5] [cursor=pointer]:
+        - /url: /jobs
+      - link "Profile" [ref=e6] [cursor=pointer]:
+        - /url: /profile
+      - link "Search Config" [ref=e7] [cursor=pointer]:
+        - /url: /search-config
+      - link "Watch Rules" [ref=e8] [cursor=pointer]:
+        - /url: /watch-rules
+  - generic [ref=e9]:
+    - heading "Profile" [level=1] [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: LinkedIn URL
+        - textbox "LinkedIn URL" [ref=e14]:
+          - /placeholder: https://www.linkedin.com/in/yourname
+          - text: https://www.linkedin.com/in/testuser
+      - generic [ref=e15]:
+        - generic [ref=e16]: Current Title
+        - textbox "Current Title" [ref=e17]: Software Engineer
+      - generic [ref=e18]:
+        - generic [ref=e19]: Target Title
+        - textbox "Target Title" [ref=e20]: Senior Software Engineer
+      - generic [ref=e21]:
+        - generic [ref=e22]: Years of Experience
+        - spinbutton "Years of Experience" [ref=e23]: "5"
+      - generic [ref=e24]:
+        - generic [ref=e25]: Skills
+        - textbox "Skills" [ref=e26]: Python, FastAPI, SQLAlchemy, HTMX, Docker
+      - button "Save Profile" [ref=e27] [cursor=pointer]
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - heading "AI Insights" [level=2] [ref=e30]
+        - button "Analyze Profile" [ref=e31] [cursor=pointer]
+      - list [ref=e33]:
+        - listitem [ref=e34]: Develop a personal website or blog to showcase projects and demonstrate expertise in areas like Python and FastAPI
+        - listitem [ref=e35]: Expand skill set to include cloud platforms such as AWS or Azure to increase versatility
+        - listitem [ref=e36]: Pursue certifications like AWS Certified Developer or Certified Scrum Master to enhance credibility for senior roles
+        - listitem [ref=e37]: Create a portfolio of successfully implemented projects to demonstrate problem-solving and leadership skills
+        - listitem [ref=e38]: Engage in open-source contributions on platforms like GitHub to demonstrate collaboration and coding abilities

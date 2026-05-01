@@ -55,7 +55,7 @@
 </head>
 <body class="bg-background text-on-surface min-h-screen">
   {% include "partials/nav.html" %}
-  <div class="ml-64 min-h-screen">
+  <div id="app-content" class="min-h-screen" style="margin-left: 256px">
     <header class="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-8 py-4 border-b border-outline-variant/15 flex items-center justify-between">
       <h2 class="text-xl font-bold font-headline">Search Config</h2>
     </header>
@@ -124,13 +124,121 @@
             </select>
           </div>
 
-          <button
-            type="submit"
-            class="w-full bg-primary hover:opacity-90 text-on-primary font-bold py-2.5 px-4 rounded-lg text-sm transition-opacity flex items-center justify-center gap-2"
-          >
-            <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-            Run Scrape
-          </button>
+          <div>
+            <label for="role_level" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Role Level <span class="text-error">*</span></label>
+            <select
+              id="role_level"
+              name="role_level"
+              required
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="" {% if not latest_config or not latest_config.role_level %}selected{% endif %}>— Select —</option>
+              <option value="ic_senior" {% if latest_config and latest_config.role_level == 'ic_senior' %}selected{% endif %}>Senior IC (Senior / Staff / Principal)</option>
+              <option value="team_lead" {% if latest_config and latest_config.role_level == 'team_lead' %}selected{% endif %}>Team Lead / Tech Lead</option>
+              <option value="engineering_manager" {% if latest_config and latest_config.role_level == 'engineering_manager' %}selected{% endif %}>Engineering Manager</option>
+              <option value="director" {% if latest_config and latest_config.role_level == 'director' %}selected{% endif %}>Director</option>
+              <option value="vp" {% if latest_config and latest_config.role_level == 'vp' %}selected{% endif %}>VP of Engineering</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="country" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Country</label>
+            <select
+              id="country"
+              name="country"
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="israel" {% if not latest_config or (latest_config.country or 'israel') == 'israel' %}selected{% endif %}>Israel (default)</option>
+              <option value="usa" {% if latest_config and latest_config.country == 'usa' %}selected{% endif %}>USA</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="max_age_hours" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Max Job Age</label>
+            <select
+              id="max_age_hours"
+              name="max_age_hours"
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="24" {% if latest_config and latest_config.max_age_hours == 24 %}selected{% endif %}>24h — Fresh</option>
+              <option value="48" {% if latest_config and latest_config.max_age_hours == 48 %}selected{% endif %}>48h — Apply Soon</option>
+              <option value="72" {% if not latest_config or not latest_config.max_age_hours or latest_config.max_age_hours == 72 %}selected{% endif %}>72h — Late (default)</option>
+              <option value="168" {% if latest_config and latest_config.max_age_hours == 168 %}selected{% endif %}>7 days</option>
+              <option value="" {% if latest_config and latest_config.max_age_hours is none %}selected{% endif %}>Any</option>
+            </select>
+          </div>
+
+          <div class="flex items-start gap-3 py-1">
+            <input
+              id="include_remote"
+              name="include_remote"
+              type="checkbox"
+              value="1"
+              {% if latest_config and latest_config.include_remote %}checked{% endif %}
+              class="mt-0.5 rounded bg-surface-container-low border-outline focus:ring-primary/20"
+            />
+            <div>
+              <label for="include_remote" class="text-sm font-medium text-on-surface cursor-pointer">Include remote roles</label>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">By default, only on-site and hybrid roles in your location are shown.</p>
+            </div>
+          </div>
+
+          <div>
+            <label for="exclude_keywords" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Exclude Keywords <span class="text-on-surface-variant font-normal">(CSV)</span></label>
+            <textarea
+              id="exclude_keywords"
+              name="exclude_keywords"
+              rows="2"
+              placeholder="crypto, gambling, junior"
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface-bright transition-colors resize-none"
+            >{{ latest_config.exclude_keywords if latest_config and latest_config.exclude_keywords else '' }}</textarea>
+          </div>
+
+          <div>
+            <label for="blocked_companies" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Blocked Companies <span class="text-on-surface-variant font-normal">(CSV)</span></label>
+            <textarea
+              id="blocked_companies"
+              name="blocked_companies"
+              rows="2"
+              placeholder="CompanyA, CompanyB"
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface-bright transition-colors resize-none"
+            >{{ latest_config.blocked_companies if latest_config and latest_config.blocked_companies else '' }}</textarea>
+          </div>
+
+          <div>
+            <label for="min_salary" class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Min Salary (₪) <span class="text-on-surface-variant font-normal">(optional)</span></label>
+            <input
+              id="min_salary"
+              name="min_salary"
+              type="number"
+              min="0"
+              step="1000"
+              placeholder="e.g. 25000"
+              value="{{ latest_config.min_salary if latest_config and latest_config.min_salary else '' }}"
+              class="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface-bright transition-colors"
+            />
+            <p class="text-[11px] text-on-surface-variant mt-1">Israeli listings rarely include salary — unset to avoid filtering out unlisted roles.</p>
+          </div>
+
+          <div class="flex gap-3">
+            <button
+              type="button"
+              hx-post="/scrape/save-config"
+              hx-target="#scrape-result"
+              hx-swap="outerHTML"
+              class="flex-1 bg-surface-container hover:bg-surface-container-high text-on-surface font-bold py-2.5 px-4 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+            >
+              <span class="material-symbols-outlined text-[18px]">save</span>
+              Save Config
+            </button>
+            <button
+              type="submit"
+              class="flex-1 bg-primary hover:opacity-90 text-on-primary font-bold py-2.5 px-4 rounded-lg text-sm transition-opacity flex items-center justify-center gap-2"
+            >
+              <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+              Run Scrape
+            </button>
+          </div>
         </form>
 
         <div class="mt-6">

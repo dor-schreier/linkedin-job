@@ -9,10 +9,11 @@ from starlette.responses import RedirectResponse
 
 from app.database import get_session
 from app.repository import JobRepository
-from app.services import groq_service
+from app.services import llm_service as groq_service
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+templates.env.filters["fromjson"] = json.loads
 
 
 def _ctx(db: Session, active: str, extra: Optional[dict] = None) -> dict:
@@ -102,7 +103,7 @@ def profile_analyze(request: Request, db: Session = Depends(get_session)):
 @router.get("/watch-rules", response_class=HTMLResponse)
 def watch_rules_page(request: Request, db: Session = Depends(get_session)):
     repo = JobRepository(db)
-    rules = repo.list_watch_rules(active_only=True)
+    rules = repo.list_watch_rules(active_only=False)
     return templates.TemplateResponse(
         request,
         "watch_rules.html",
@@ -173,6 +174,22 @@ def profile_optimizer_analyze(request: Request, db: Session = Depends(get_sessio
         request,
         "partials/linkedin_analysis.html",
         {"analysis": result},
+    )
+
+
+@router.get("/profile/keyword-gaps", response_class=HTMLResponse)
+def profile_keyword_gaps(request: Request, db: Session = Depends(get_session)):
+    from app.services.analysis_service import compute_keyword_gaps, get_gap_recommendations
+    repo = JobRepository(db)
+    profile = repo.get_profile()
+    jobs = repo.get_jobs_with_intelligence(days=30)
+    profile_skills = (profile.skills or "") if profile else ""
+    gaps = compute_keyword_gaps(jobs, profile_skills)
+    recommendation = get_gap_recommendations(gaps) if gaps else None
+    return templates.TemplateResponse(
+        request,
+        "partials/keyword_gaps.html",
+        {"gaps": gaps, "recommendation": recommendation, "total_jobs": len(jobs)},
     )
 
 

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Finder — Reject Rules</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { headline: ['Manrope', 'sans-serif'], body: ['Inter', 'sans-serif'] },
+          colors: {
+            background: '#0f1117', surface: '#1a1d27', 'surface-bright': '#252836',
+            'surface-container-lowest': '#12141e', 'surface-container-low': '#1e2130',
+            'surface-container': '#222538', 'surface-container-high': '#272a3d',
+            'surface-container-highest': '#2d3045',
+            'on-surface': '#e2e4f0', 'on-surface-variant': '#9da3bd',
+            outline: '#565d78', 'outline-variant': '#3a3f56',
+            primary: '#565e74', 'on-primary': '#ffffff',
+            'primary-container': '#2e3348', 'on-primary-container': '#c5cbdf',
+            'primary-dim': '#8891a8',
+            error: '#cf6679', 'on-error': '#ffffff',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+    body { font-family: 'Inter', sans-serif; }
+    h1, h2, h3, .font-headline { font-family: 'Manrope', sans-serif; }
+  </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+  {% include "partials/nav.html" %}
+
+  <div id="app-content" class="min-h-screen" style="margin-left: 256px">
+    <header class="sticky top-0 z-40 bg-surface/80 backdrop-blur-md px-8 py-4 border-b border-outline-variant/15">
+      <h2 class="text-xl font-bold font-headline">Reject Rules</h2>
+      <p class="text-xs text-on-surface-variant mt-0.5">Hide jobs by location, property, or title keyword. Rules apply both to existing jobs and new scrapes.</p>
+    </header>
+
+    <div class="p-8 max-w-6xl mx-auto space-y-8">
+
+      <!-- Section: Location -->
+      <section class="bg-surface-container-lowest rounded-xl p-6">
+        <h3 class="text-sm font-bold font-headline mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary-dim">location_on</span> Reject by Location
+        </h3>
+        <form action="/settings/reject-rules/create" method="post" class="flex gap-2 mb-4">
+          <input type="hidden" name="rule_type" value="location" />
+          <select name="value" required class="flex-1 px-3 py-2 bg-surface-container-low rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="">— pick a location —</option>
+            {% set used_locations = rules | selectattr('rule_type', 'equalto', 'location') | map(attribute='value') | map('lower') | list %}
+            {% for loc in locations if loc.lower() not in used_locations %}<option value="{{ loc }}">{{ loc }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="px-4 py-2 bg-primary text-on-primary rounded-lg font-bold text-sm hover:opacity-90">Add</button>
+        </form>
+        <div class="space-y-2">
+          {% for r in rules if r.rule_type == 'location' %}
+          {% include "partials/reject_rule_row.html" %}
+          {% else %}
+          <p class="text-xs text-outline italic">No location rules yet.</p>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Section: Property -->
+      <section class="bg-surface-container-lowest rounded-xl p-6">
+        <h3 class="text-sm font-bold font-headline mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary-dim">tune</span> Reject by Property
+        </h3>
+        <form id="property-form" action="/settings/reject-rules/create" method="post" class="flex flex-wrap gap-2 mb-4">
+          <input type="hidden" name="rule_type" value="property" />
+          <select id="property-select" name="property_name" required class="px-3 py-2 bg-surface-container-low rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="">— property —</option>
+            {% for p in supported_properties %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+          <select id="property-value" name="value" required class="flex-1 px-3 py-2 bg-surface-container-low rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="">— pick a value —</option>
+          </select>
+          <button type="submit" class="px-4 py-2 bg-primary text-on-primary rounded-lg font-bold text-sm hover:opacity-90">Add</button>
+        </form>
+        <script>
+          document.getElementById('property-select').addEventListener('change', async function () {
+            const sel = document.getElementById('property-value');
+            sel.innerHTML = '<option value="">— pick a value —</option>';
+            if (!this.value) return;
+            const resp = await fetch('/api/reject-rules/property-values?property=' + encodeURIComponent(this.value));
+            if (!resp.ok) return;
+            const data = await resp.json();
+            for (const v of data.values || []) {
+              const opt = document.createElement('option');
+              opt.value = v; opt.textContent = v;
+              sel.appendChild(opt);
+            }
+          });
+        </script>
+        <div class="space-y-2">
+          {% for r in rules if r.rule_type == 'property' %}
+          {% include "partials/reject_rule_row.html" %}
+          {% else %}
+          <p class="text-xs text-outline italic">No property rules yet.</p>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Section: Title keyword -->
+      <section class="bg-surface-container-lowest rounded-xl p-6">
+        <h3 class="text-sm font-bold font-headline mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary-dim">text_fields</span> Reject by Title Keyword
+        </h3>
+        <form action="/settings/reject-rules/create" method="post" class="flex gap-2 mb-4">
+          <input type="hidden" name="rule_type" value="title_keyword" />
+          <input type="text" name="value" required placeholder='e.g. "data entry" or "intern"'
+                 class="flex-1 px-3 py-2 bg-surface-container-low rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+          <button type="submit" class="px-4 py-2 bg-primary text-on-primary rounded-lg font-bold text-sm hover:opacity-90">Add</button>
+        </form>
+        <div class="flex flex-wrap gap-2">
+          {% for r in rules if r.rule_type == 'title_keyword' %}
+          <div class="flex items-center gap-2 bg-surface-container rounded-full pl-3 pr-1 py-1">
+            <span class="text-xs font-medium {% if not r.is_enabled %}line-through opacity-50{% endif %}">{{ r.value }}</span>
+            <span class="text-[10px] font-bold text-on-primary-container bg-primary-container rounded-full px-2 py-0.5">{{ rule_counts.get(r.id, 0) }}</span>
+            <form action="/settings/reject-rules/{{ r.id }}/toggle" method="post" class="inline">
+              <button type="submit" class="text-outline hover:text-on-surface text-[14px] material-symbols-outlined" title="Toggle">{% if r.is_enabled %}toggle_on{% else %}toggle_off{% endif %}</button>
+            </form>
+            <form action="/settings/reject-rules/{{ r.id }}/delete" method="post" class="inline"
+                  onsubmit="return confirm('This will un-reject {{ rule_counts.get(r.id, 0) }} jobs unless other rules also match them.');">
+              <button type="submit" class="text-outline hover:text-error text-[16px] material-symbols-outlined" title="Delete">close</button>
+            </form>
+          </div>
+          {% else %}
+          <p class="text-xs text-outline italic">No title keyword rules yet.</p>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Rejected jobs view -->
+      <section class="bg-surface-container-lowest rounded-xl p-6">
+        <h3 class="text-sm font-bold font-headline mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary-dim">block</span> Rejected Jobs
+          <span class="ml-2 text-xs font-normal text-outline">{{ rejected_jobs|length }} listed</span>
+        </h3>
+        <div class="space-y-2">
+          {% for job in rejected_jobs %}
+          <div class="flex items-center justify-between bg-surface-container rounded-lg p-3">
+            <div class="min-w-0">
+              <a href="/jobs/{{ job.id }}" class="text-sm font-semibold text-on-surface hover:text-primary-dim truncate block">{{ job.title }}</a>
+              <p class="text-xs text-on-surface-variant truncate">{{ job.company }} — {{ job.location or '—' }}</p>
+            </div>
+            <form action="/settings/reject-rules/jobs/{{ job.id }}/unreject" method="post">
+              <button type="submit" class="text-xs px-3 py-1 bg-primary-container text-on-primary-container rounded-full hover:opacity-90">Restore</button>
+            </form>
+          </div>
+          {% else %}
+          <p class="text-xs text-outline italic">No rejected jobs.</p>
+          {% endfor %}
+        </div>
+      </section>
+
+    </div>
+  </div>
+</body>
+</html>

@@ -1,15 +1,18 @@
+import json
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
+from pydantic import BaseModel
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_session
-from app.models import JobStatus
+from app.models import Job, JobStatus
 from app.repository import JobRepository
 from app.routes.pages import _ctx
-from app.services import groq_service
+from app.services import llm_service as groq_service
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -28,8 +31,35 @@ def _fit_label(score):
 
 
 templates.env.globals["fit_label"] = _fit_label
+templates.env.filters["fromjson"] = json.loads
 
 PAGE_SIZE = 50
+
+
+def _urgency_tier(job) -> Optional[str]:
+    """Return urgency tier based on date_posted: Fresh, Apply Soon, Late, or None."""
+    if job.date_posted is None:
+        return None
+    from datetime import date
+    age_days = (date.today() - job.date_posted).days
+    if age_days < 1:
+        return "Fresh"
+    if age_days <= 2:
+        return "Apply Soon"
+    return "Late"
+
+
+templates.env.globals["urgency_tier"] = _urgency_tier
+
+
+def _days_since_posted(job) -> Optional[int]:
+    if job.date_posted is None:
+        return None
+    from datetime import date
+    return (date.today() - job.date_posted).days
+
+
+templates.env.globals["days_since_posted"] = _days_since_posted
 
 
 @router.get("/jobs", response_class=HTMLResponse)
@@ -37,19 +67,33 @@ def jobs_list(
     request: Request,
     status: Optional[str] = None,
     company: Optional[str] = None,
+    location: Optional[str] = None,
     salary_min: Optional[str] = None,
+    sort: Optional[str] = None,
+    fresh_only: Optional[str] = None,
+    hide_rated: Optional[str] = None,
+    sector: Optional[str] = None,
+    company_type: Optional[str] = None,
+    source: Optional[str] = None,
+    show_inactive: Optional[str] = None,
+    include_rejected: Optional[str] = None,
+    q: Optional[str] = None,
     page: int = 1,
     db: Session = Depends(get_session),
 ):
     repo = JobRepository(db)
 
     # Validate and coerce status
+    rated_only = False
     status_enum: Optional[JobStatus] = None
     if status:
-        try:
-            status_enum = JobStatus(status)
-        except ValueError:
-            raise HTTPException(status_code=422, detail=f"Invalid status: {status}")
+        if status == "rated":
+            rated_only = True
+        else:
+            try:
+                status_enum = JobStatus(status)
+            except ValueError:
+                raise HTTPException(status_code=422, detail=f"Invalid status: {status}")
 
     # Validate and coerce salary_min
     salary_min_f: Optional[float] = None
@@ -59,45 +103,137 @@ def jobs_list(
         except ValueError:
             raise HTTPException(status_code=422, detail="salary_min must be numeric")
 
+    fresh_only_bool = fresh_only == "1"
+    hide_rated_bool = hide_rated == "1"
+    show_inactive_bool = show_inactive == "1"
+    include_rejected_bool = include_rejected == "1"
+    sort_val = sort if sort in ("freshest", "fit_desc", "fit_asc", "rating_desc", "date_posted_asc") else None
+
     offset = (page - 1) * PAGE_SIZE
     jobs = repo.list_jobs(
         status=status_enum,
         company=company or None,
+        location=location or None,
         salary_min_filter=salary_min_f,
+        fresh_only=fresh_only_bool,
+        sort=sort_val,
+        sector=sector or None,
+        company_type=company_type or None,
+        source=source or None,
+        rated_only=rated_only,
+        hide_rated=hide_rated_bool,
+        show_inactive=show_inactive_bool,
+        include_rejected=include_rejected_bool,
+        search_text=q or None,
         limit=PAGE_SIZE,
         offset=offset,
     )
     total = repo.count_jobs_filtered(
         status=status_enum,
         company=company or None,
+        location=location or None,
         salary_min_filter=salary_min_f,
+        fresh_only=fresh_only_bool,
+        sector=sector or None,
+        company_type=company_type or None,
+        source=source or None,
+        rated_only=rated_only,
+        hide_rated=hide_rated_bool,
+        show_inactive=show_inactive_bool,
+        include_rejected=include_rejected_bool,
+        search_text=q or None,
     )
     has_more = (offset + PAGE_SIZE) < total
 
     # Determine if this is an HTMX partial request
     is_htmx = request.headers.get("HX-Request") == "true"
 
+    # --- Hero stats ---
+    now = datetime.now(timezone.utc)
+    last_visit_ts: Optional[datetime] = None
+    last_visit_raw = request.cookies.get("last_visit")
+    if last_visit_raw:
+        try:
+            last_visit_ts = datetime.fromisoformat(last_visit_raw)
+            if last_visit_ts.tzinfo is None:
+                last_visit_ts = last_visit_ts.replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+
+    total_jobs = db.query(Job).filter(Job.is_active == True, Job.status != JobStatus.REJECTED, Job.is_rejected == False).count()  # noqa: E712
+    high_match_count = db.query(Job).filter(Job.is_active == True, Job.status != JobStatus.REJECTED, Job.is_rejected == False, Job.fit_score >= 90).count()  # noqa: E712
+    unscored_count = db.query(Job).filter(Job.is_active == True, Job.status != JobStatus.REJECTED, Job.is_rejected == False, Job.fit_score.is_(None)).count()  # noqa: E712
+
+    if last_visit_ts:
+        new_since_last_visit = db.query(Job).filter(Job.is_active == True, Job.status != JobStatus.REJECTED, Job.is_rejected == False, Job.scraped_at > last_visit_ts).count()  # noqa: E712
+    else:
+        new_since_last_visit = total_jobs
+
+    from app.routes.scrape import _scrape_status  # lazy import to avoid circular dep
+    scraper_running = _scrape_status.get("running", False)
+    last_result = _scrape_status.get("last_result")
+
+    latest_log = repo.get_latest_scrape_log()
+    last_scrape_at = None
+    if latest_log:
+        last_scrape_at = latest_log.finished_at or latest_log.started_at
+
+    stats = {
+        "total_jobs": total_jobs,
+        "new_since_last_visit": new_since_last_visit,
+        "high_match_count": high_match_count,
+        "unscored_count": unscored_count,
+        "scraper_running": scraper_running,
+        "last_scrape_at": last_scrape_at,
+        "last_scrape_inserted": last_result.get("inserted") if last_result else None,
+        "last_scrape_skipped": last_result.get("skipped") if last_result else None,
+    }
+
+    companies = repo.get_distinct_companies()
+    locations = repo.get_distinct_locations()
+    sectors = repo.get_distinct_sectors()
+    company_types = repo.get_distinct_company_types()
+    sources = repo.get_distinct_sources()
+
     job_ctx = {
         "jobs": jobs,
         "total": total,
         "page": page,
         "has_more": has_more,
+        "stats": stats,
         "filters": {
-            "status": status or "",
+            "status": status or "",  # raw string so "rated" is preserved for the template
             "company": company or "",
+            "location": location or "",
             "salary_min": salary_min or "",
+            "sort": sort or "",
+            "fresh_only": "1" if fresh_only_bool else "",
+            "hide_rated": "1" if hide_rated_bool else "",
+            "sector": sector or "",
+            "company_type": company_type or "",
+            "source": source or "",
+            "show_inactive": "1" if show_inactive_bool else "",
+            "include_rejected": "1" if include_rejected_bool else "",
+            "q": q or "",
         },
         "job_statuses": [s.value for s in JobStatus],
+        "companies": companies,
+        "locations": locations,
+        "sectors": sectors,
+        "company_types": company_types,
+        "sources": sources,
     }
 
     if is_htmx:
         return templates.TemplateResponse(request, "partials/job_list.html", job_ctx)
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "jobs.html",
         _ctx(db, "jobs", job_ctx),
     )
+    response.set_cookie("last_visit", now.isoformat(), max_age=365 * 24 * 3600, httponly=True, samesite="lax")
+    return response
 
 
 @router.post("/jobs/{job_id}/score", response_class=HTMLResponse)
@@ -119,20 +255,130 @@ def score_job(job_id: int, request: Request, db: Session = Depends(get_session))
         return HTMLResponse(
             '<p class="text-xs text-gray-500">Save your profile first to score jobs.</p>'
         )
-    result = groq_service.get_fit_score_and_salary(job, profile)
-    if result.get("fit_score") is not None:
-        repo.update_job_scores(
+    # Parse JD intelligence if available
+    jd_intelligence = None
+    if job.intelligence_json:
+        try:
+            jd_intelligence = json.loads(job.intelligence_json)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Try enhanced scoring first; fall back to legacy on failure
+    breakdown = groq_service.get_enhanced_fit_score(job, profile, jd_intelligence=jd_intelligence)
+    if breakdown is not None:
+        job_summary_data = breakdown.get("job_summary")
+        score_to_store = {k: v for k, v in breakdown.items() if k != "job_summary"}
+        repo.update_job_score_breakdown(
             job_id=job.id,
-            fit_score=int(result["fit_score"]),
-            fit_summary=result.get("fit_summary") or "",
-            salary_estimated=result.get("salary_estimated"),
+            score_breakdown_json=json.dumps(score_to_store),
+            fit_score=int(breakdown["overall_score"]),
+            fit_summary=breakdown["summary"],
         )
-        job = repo.get_job(job_id)
+        if job_summary_data:
+            repo.update_job_summary(
+                job_id=job.id,
+                tech_stack_json=json.dumps(job_summary_data.get("tech_stack", [])),
+                qualifications_json=json.dumps(job_summary_data.get("qualifications", [])),
+                experience_needed=job_summary_data.get("experience_needed"),
+                general_description=job_summary_data.get("general_description"),
+            )
+    else:
+        result = groq_service.get_fit_score_and_salary(job, profile)
+        if result.get("fit_score") is not None:
+            repo.update_job_scores(
+                job_id=job.id,
+                fit_score=int(result["fit_score"]),
+                fit_summary=result.get("fit_summary") or "",
+                salary_estimated=result.get("salary_estimated"),
+            )
+
+    job = repo.get_job(job_id)
+    breakdown_data = None
+    if job.score_breakdown_json:
+        try:
+            breakdown_data = json.loads(job.score_breakdown_json)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
     return templates.TemplateResponse(
         request,
         "partials/job_score.html",
-        {"job": job, "label": _fit_label(job.fit_score)},
+        {"job": job, "label": _fit_label(job.fit_score), "breakdown": breakdown_data},
     )
+
+
+@router.get("/jobs/scrape-status")
+def jobs_scrape_status():
+    from app.routes.scrape import _scrape_status
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"running": bool(_scrape_status.get("running", False))})
+
+
+@router.get("/jobs/{job_id}", response_class=HTMLResponse)
+def job_detail(job_id: int, request: Request, db: Session = Depends(get_session)):
+    if job_id <= 0:
+        raise HTTPException(status_code=422, detail="Invalid job_id")
+    repo = JobRepository(db)
+    job = repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    intelligence = None
+    if job.intelligence_json:
+        try:
+            intelligence = json.loads(job.intelligence_json)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    breakdown = None
+    if job.score_breakdown_json:
+        try:
+            breakdown = json.loads(job.score_breakdown_json)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return templates.TemplateResponse(
+        request,
+        "job_detail.html",
+        _ctx(db, "jobs", {"job": job, "intelligence": intelligence, "breakdown": breakdown}),
+    )
+
+
+@router.post("/jobs/{job_id}/reextract", response_class=HTMLResponse)
+def reextract_job_intelligence(job_id: int, request: Request, db: Session = Depends(get_session)):
+    if job_id <= 0:
+        raise HTTPException(status_code=422, detail="Invalid job_id")
+    repo = JobRepository(db)
+    job = repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    result = groq_service.extract_job_intelligence(job)
+    error = None
+    if result is not None:
+        job.intelligence_json = json.dumps(result)
+        db.commit()
+    else:
+        error = "Extraction failed. Check your Groq API key or try again."
+    intelligence = result
+    return templates.TemplateResponse(
+        request,
+        "partials/job_intelligence.html",
+        {"job": job, "intelligence": intelligence, "error": error},
+    )
+
+
+class RateJobRequest(BaseModel):
+    rating: Optional[int] = None
+
+
+@router.patch("/jobs/{job_id}/rate")
+def rate_job(job_id: int, body: RateJobRequest, db: Session = Depends(get_session)):
+    if job_id <= 0:
+        raise HTTPException(status_code=422, detail="Invalid job_id")
+    if body.rating is not None and body.rating not in range(1, 6):
+        raise HTTPException(status_code=422, detail="rating must be 1-5 or null")
+    repo = JobRepository(db)
+    job = repo.update_job_rating(job_id, body.rating)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return Response(status_code=204)
 
 
 @router.post("/jobs/{job_id}/status")
@@ -152,5 +398,12 @@ async def update_job_status(
     job = repo.update_job_status(job_id, status_enum)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    # Return 204 No Content — HTMX hx-swap="none" expects no body
+    if status_enum == JobStatus.REJECTED:
+        return Response(
+            status_code=200,
+            headers={
+                "HX-Retarget": f"#job-card-{job_id}",
+                "HX-Reswap": "delete",
+            },
+        )
     return Response(status_code=204)

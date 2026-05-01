@@ -1,0 +1,972 @@
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]: Job Finder
+    - generic [ref=e4]:
+      - link "Jobs" [ref=e5] [cursor=pointer]:
+        - /url: /jobs
+      - link "Profile" [ref=e6] [cursor=pointer]:
+        - /url: /profile
+      - link "Search Config" [ref=e7] [cursor=pointer]:
+        - /url: /search-config
+      - link "Watch Rules" [ref=e8] [cursor=pointer]:
+        - /url: /watch-rules
+  - generic [ref=e9]:
+    - heading "Jobs" [level=1] [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: Status
+        - combobox "Status" [ref=e14]:
+          - option "All Statuses" [selected]
+          - option "New"
+          - option "Saved"
+          - option "Applied"
+          - option "Interviewing"
+          - option "Offer"
+          - option "Rejected"
+      - generic [ref=e15]:
+        - generic [ref=e16]: Company
+        - textbox "Company" [ref=e17]:
+          - /placeholder: Filter by company
+      - generic [ref=e18]:
+        - generic [ref=e19]: Min Salary
+        - spinbutton "Min Salary" [ref=e20]
+      - link "Reset" [ref=e21] [cursor=pointer]:
+        - /url: /jobs
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]:
+            - paragraph [ref=e26]: Senior Engineering Team Lead (Mobile)
+            - paragraph [ref=e27]: monday.com · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e28]:
+              - generic [ref=e29]: linkedin
+              - generic [ref=e30]: Apr 12, 2026
+          - generic [ref=e31]:
+            - combobox "Job status for Senior Engineering Team Lead (Mobile)" [ref=e32]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e33] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4377860659
+        - button "Score" [active] [ref=e35] [cursor=pointer]
+        - generic [ref=e661]:
+          - generic [ref=e662]:
+            - generic [ref=e663]: "Fit: 64/100"
+            - generic [ref=e664]: Good
+          - paragraph [ref=e665]: The candidate has relevant skills in software development, but the required experience and specific mobile development background are a step ahead. The job demands leadership experience and specific knowledge of mobile development, which the candidate may not directly possess.
+          - paragraph [ref=e666]: "Estimated: $120,000 - $180,000/yr"
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e38]:
+            - paragraph [ref=e39]: Senior User Acquisition Manager
+            - paragraph [ref=e40]: Urban Recruits · Tel Aviv District, Israel
+            - generic [ref=e41]:
+              - generic [ref=e42]: linkedin
+              - generic [ref=e43]: Apr 12, 2026
+          - generic [ref=e44]:
+            - combobox "Job status for Senior User Acquisition Manager" [ref=e45]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e46] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4397234152
+        - button "Score" [ref=e48] [cursor=pointer]
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - generic [ref=e51]:
+            - paragraph [ref=e52]: CSM Team Lead Europe
+            - paragraph [ref=e53]: Radware · Tel Aviv District, Israel
+            - generic [ref=e54]:
+              - generic [ref=e55]: linkedin
+              - generic [ref=e56]: Apr 11, 2026
+          - generic [ref=e57]:
+            - combobox "Job status for CSM Team Lead Europe" [ref=e58]:
+              - option "— Set Status —"
+              - option "Saved" [selected]
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e59] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4388404376
+        - button "Score" [ref=e61] [cursor=pointer]
+      - generic [ref=e62]:
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - paragraph [ref=e65]: Senior Software Engineer & Generative AI Lead
+            - paragraph [ref=e66]: Starkey Hearing · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e67]:
+              - generic [ref=e68]: linkedin
+              - generic [ref=e69]: Apr 11, 2026
+          - generic [ref=e70]:
+            - combobox "Job status for Senior Software Engineer & Generative AI Lead" [ref=e71]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e72] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4234250847
+        - button "Score" [ref=e74] [cursor=pointer]
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - generic [ref=e77]:
+            - paragraph [ref=e78]: Platform Team Lead
+            - paragraph [ref=e79]: Rounds · Kfar Saba, Center District, Israel
+            - generic [ref=e80]:
+              - generic [ref=e81]: linkedin
+              - generic [ref=e82]: Apr 11, 2026
+          - generic [ref=e83]:
+            - combobox "Job status for Platform Team Lead" [ref=e84]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e85] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4377840617
+        - button "Score" [ref=e87] [cursor=pointer]
+      - generic [ref=e88]:
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - paragraph [ref=e91]: Full-Stack Team Lead
+            - paragraph [ref=e92]: Oktopost · Ramat Gan, Tel Aviv District, Israel
+            - generic [ref=e93]:
+              - generic [ref=e94]: linkedin
+              - generic [ref=e95]: Apr 11, 2026
+          - generic [ref=e96]:
+            - combobox "Job status for Full-Stack Team Lead" [ref=e97]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e98] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4399237926
+        - button "Score" [ref=e100] [cursor=pointer]
+      - generic [ref=e101]:
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - paragraph [ref=e104]: Senior Demand Generation Manager
+            - paragraph [ref=e105]: Healthee · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e106]:
+              - generic [ref=e107]: linkedin
+              - generic [ref=e108]: Apr 11, 2026
+          - generic [ref=e109]:
+            - combobox "Job status for Senior Demand Generation Manager" [ref=e110]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e111] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4398527341
+        - button "Score" [ref=e113] [cursor=pointer]
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - generic [ref=e116]:
+            - paragraph [ref=e117]: Senior Software Engineer (AI)
+            - paragraph [ref=e118]: Datadog · Tel Aviv District, Israel
+            - generic [ref=e119]:
+              - generic [ref=e120]: linkedin
+              - generic [ref=e121]: Apr 11, 2026
+          - generic [ref=e122]:
+            - combobox "Job status for Senior Software Engineer (AI)" [ref=e123]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e124] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4275344055
+        - button "Score" [ref=e126] [cursor=pointer]
+      - generic [ref=e127]:
+        - generic [ref=e128]:
+          - generic [ref=e129]:
+            - paragraph [ref=e130]: Senior C++ Software Engineer – Algorithm Implementation
+            - paragraph [ref=e131]: Eshed Group · Beer Yaakov, Center District, Israel
+            - generic [ref=e132]:
+              - generic [ref=e133]: linkedin
+              - generic [ref=e134]: Apr 11, 2026
+          - generic [ref=e135]:
+            - combobox "Job status for Senior C++ Software Engineer – Algorithm Implementation" [ref=e136]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e137] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4398214737
+        - button "Score" [ref=e139] [cursor=pointer]
+      - generic [ref=e140]:
+        - generic [ref=e141]:
+          - generic [ref=e142]:
+            - paragraph [ref=e143]: Senior Software Manager
+            - paragraph [ref=e144]: NVIDIA · Yokneam Ilit, North District, Israel
+            - generic [ref=e145]:
+              - generic [ref=e146]: linkedin
+              - generic [ref=e147]: Apr 11, 2026
+          - generic [ref=e148]:
+            - combobox "Job status for Senior Software Manager" [ref=e149]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e150] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4395484228
+        - button "Score" [ref=e152] [cursor=pointer]
+      - generic [ref=e153]:
+        - generic [ref=e154]:
+          - generic [ref=e155]:
+            - paragraph [ref=e156]: Senior Demand Generation Manager (B2B)
+            - paragraph [ref=e157]: Global-e · Petah Tikva, Center District, Israel
+            - generic [ref=e158]:
+              - generic [ref=e159]: linkedin
+              - generic [ref=e160]: Apr 11, 2026
+          - generic [ref=e161]:
+            - combobox "Job status for Senior Demand Generation Manager (B2B)" [ref=e162]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e163] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4397721470
+        - button "Score" [ref=e165] [cursor=pointer]
+      - generic [ref=e166]:
+        - generic [ref=e167]:
+          - generic [ref=e168]:
+            - paragraph [ref=e169]: Agent Team Lead
+            - paragraph [ref=e170]: Orchid Security · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e171]:
+              - generic [ref=e172]: linkedin
+              - generic [ref=e173]: Apr 11, 2026
+          - generic [ref=e174]:
+            - combobox "Job status for Agent Team Lead" [ref=e175]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e176] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4377390361
+        - button "Score" [ref=e178] [cursor=pointer]
+      - generic [ref=e179]:
+        - generic [ref=e180]:
+          - generic [ref=e181]:
+            - paragraph [ref=e182]: Senior Channel Partnerships Manager, Israel and Middle East
+            - paragraph [ref=e183]: Airwallex · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e184]:
+              - generic [ref=e185]: linkedin
+              - generic [ref=e186]: Apr 11, 2026
+          - generic [ref=e187]:
+            - combobox "Job status for Senior Channel Partnerships Manager, Israel and Middle East" [ref=e188]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e189] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4337487929
+        - button "Score" [ref=e191] [cursor=pointer]
+      - generic [ref=e192]:
+        - generic [ref=e193]:
+          - generic [ref=e194]:
+            - paragraph [ref=e195]: Senior Social Media Manager (B2C)
+            - paragraph [ref=e196]: Similarweb · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e197]:
+              - generic [ref=e198]: linkedin
+              - generic [ref=e199]: Apr 11, 2026
+          - generic [ref=e200]:
+            - combobox "Job status for Senior Social Media Manager (B2C)" [ref=e201]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e202] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4370146292
+        - button "Score" [ref=e204] [cursor=pointer]
+      - generic [ref=e205]:
+        - generic [ref=e206]:
+          - generic [ref=e207]:
+            - paragraph [ref=e208]: R&D Team Leader for Breaking Glass Vault
+            - paragraph [ref=e209]: CyberArk · Petah Tikva, Center District, Israel
+            - generic [ref=e210]:
+              - generic [ref=e211]: linkedin
+              - generic [ref=e212]: Apr 11, 2026
+          - generic [ref=e213]:
+            - combobox "Job status for R&D Team Leader for Breaking Glass Vault" [ref=e214]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e215] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4372320182
+        - button "Score" [ref=e217] [cursor=pointer]
+      - generic [ref=e218]:
+        - generic [ref=e219]:
+          - generic [ref=e220]:
+            - paragraph [ref=e221]: Senior Software Engineer Team Lead
+            - paragraph [ref=e222]: Eagle Defenders Technologies · Tel Aviv District, Israel
+            - generic [ref=e223]:
+              - generic [ref=e224]: linkedin
+              - generic [ref=e225]: Apr 11, 2026
+          - generic [ref=e226]:
+            - combobox "Job status for Senior Software Engineer Team Lead" [ref=e227]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e228] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4395041316
+        - button "Score" [ref=e230] [cursor=pointer]
+      - generic [ref=e231]:
+        - generic [ref=e232]:
+          - generic [ref=e233]:
+            - paragraph [ref=e234]: Senior Software Engineer - Backend & Scalability
+            - paragraph [ref=e235]: Datadog · Tel Aviv District, Israel
+            - generic [ref=e236]:
+              - generic [ref=e237]: linkedin
+              - generic [ref=e238]: Apr 11, 2026
+          - generic [ref=e239]:
+            - combobox "Job status for Senior Software Engineer - Backend & Scalability" [ref=e240]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e241] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4291615001
+        - button "Score" [ref=e243] [cursor=pointer]
+      - generic [ref=e244]:
+        - generic [ref=e245]:
+          - generic [ref=e246]:
+            - paragraph [ref=e247]: DataOps Team Lead
+            - paragraph [ref=e248]: Discount Bank בנק דיסקונט · Rishon LeZion, Center District, Israel
+            - generic [ref=e249]:
+              - generic [ref=e250]: linkedin
+              - generic [ref=e251]: Apr 11, 2026
+          - generic [ref=e252]:
+            - combobox "Job status for DataOps Team Lead" [ref=e253]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e254] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4371873631
+        - button "Score" [ref=e256] [cursor=pointer]
+      - generic [ref=e257]:
+        - generic [ref=e258]:
+          - generic [ref=e259]:
+            - paragraph [ref=e260]: Senior CROE Operations Manager
+            - paragraph [ref=e261]: monday.com · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e262]:
+              - generic [ref=e263]: linkedin
+              - generic [ref=e264]: Apr 11, 2026
+          - generic [ref=e265]:
+            - combobox "Job status for Senior CROE Operations Manager" [ref=e266]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e267] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4391536528
+        - button "Score" [ref=e269] [cursor=pointer]
+      - generic [ref=e270]:
+        - generic [ref=e271]:
+          - generic [ref=e272]:
+            - paragraph [ref=e273]: Full Stack Team Leader
+            - paragraph [ref=e274]: Elementor · Ramat Gan, Tel Aviv District, Israel
+            - generic [ref=e275]:
+              - generic [ref=e276]: linkedin
+              - generic [ref=e277]: Apr 11, 2026
+          - generic [ref=e278]:
+            - combobox "Job status for Full Stack Team Leader" [ref=e279]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e280] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4390109691
+        - button "Score" [ref=e282] [cursor=pointer]
+      - generic [ref=e283]:
+        - generic [ref=e284]:
+          - generic [ref=e285]:
+            - paragraph [ref=e286]: Senior Data Product Manager
+            - paragraph [ref=e287]: Connecteam · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e288]:
+              - generic [ref=e289]: linkedin
+              - generic [ref=e290]: Apr 11, 2026
+          - generic [ref=e291]:
+            - combobox "Job status for Senior Data Product Manager" [ref=e292]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e293] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4364802342
+        - button "Score" [ref=e295] [cursor=pointer]
+      - generic [ref=e296]:
+        - generic [ref=e297]:
+          - generic [ref=e298]:
+            - paragraph [ref=e299]: R&D Team Lead
+            - paragraph [ref=e300]: Rounds · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e301]:
+              - generic [ref=e302]: linkedin
+              - generic [ref=e303]: Apr 11, 2026
+          - generic [ref=e304]:
+            - combobox "Job status for R&D Team Lead" [ref=e305]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e306] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4377828867
+        - button "Score" [ref=e308] [cursor=pointer]
+      - generic [ref=e309]:
+        - generic [ref=e310]:
+          - generic [ref=e311]:
+            - paragraph [ref=e312]: Senior Performance Account Manager
+            - paragraph [ref=e313]: Taboola · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e314]:
+              - generic [ref=e315]: linkedin
+              - generic [ref=e316]: Apr 11, 2026
+          - generic [ref=e317]:
+            - combobox "Job status for Senior Performance Account Manager" [ref=e318]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e319] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4363859145
+        - button "Score" [ref=e321] [cursor=pointer]
+      - generic [ref=e322]:
+        - generic [ref=e323]:
+          - generic [ref=e324]:
+            - paragraph [ref=e325]: Senior Account Manager
+            - paragraph [ref=e326]: Snap Inc. · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e327]:
+              - generic [ref=e328]: linkedin
+              - generic [ref=e329]: Apr 11, 2026
+          - generic [ref=e330]:
+            - combobox "Job status for Senior Account Manager" [ref=e331]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e332] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4370521346
+        - button "Score" [ref=e334] [cursor=pointer]
+      - generic [ref=e335]:
+        - generic [ref=e336]:
+          - generic [ref=e337]:
+            - paragraph [ref=e338]: Team Lead
+            - paragraph [ref=e339]: Entrata · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e340]:
+              - generic [ref=e341]: linkedin
+              - generic [ref=e342]: Apr 11, 2026
+          - generic [ref=e343]:
+            - combobox "Job status for Team Lead" [ref=e344]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e345] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4382884586
+        - button "Score" [ref=e347] [cursor=pointer]
+      - generic [ref=e348]:
+        - generic [ref=e349]:
+          - generic [ref=e350]:
+            - paragraph [ref=e351]: Front End Tech Lead
+            - paragraph [ref=e352]: Connecteam · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e353]:
+              - generic [ref=e354]: linkedin
+              - generic [ref=e355]: Apr 11, 2026
+          - generic [ref=e356]:
+            - combobox "Job status for Front End Tech Lead" [ref=e357]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e358] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4363779773
+        - button "Score" [ref=e360] [cursor=pointer]
+      - generic [ref=e361]:
+        - generic [ref=e362]:
+          - generic [ref=e363]:
+            - paragraph [ref=e364]: Software Team Lead (R&D Platform)
+            - paragraph [ref=e365]: Windward · Tel Aviv District, Israel
+            - generic [ref=e366]:
+              - generic [ref=e367]: linkedin
+              - generic [ref=e368]: Apr 11, 2026
+          - generic [ref=e369]:
+            - combobox "Job status for Software Team Lead (R&D Platform)" [ref=e370]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e371] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4378321409
+        - button "Score" [ref=e373] [cursor=pointer]
+      - generic [ref=e374]:
+        - generic [ref=e375]:
+          - generic [ref=e376]:
+            - paragraph [ref=e377]: R&D Team Leader
+            - paragraph [ref=e378]: Cellebrite · Petah Tikva, Center District, Israel
+            - generic [ref=e379]:
+              - generic [ref=e380]: linkedin
+              - generic [ref=e381]: Apr 11, 2026
+          - generic [ref=e382]:
+            - combobox "Job status for R&D Team Leader" [ref=e383]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e384] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4384035424
+        - button "Score" [ref=e386] [cursor=pointer]
+      - generic [ref=e387]:
+        - generic [ref=e388]:
+          - generic [ref=e389]:
+            - paragraph [ref=e390]: Senior Customer Success Manager
+            - paragraph [ref=e391]: WIDER · Tel Aviv District, Israel
+            - generic [ref=e392]:
+              - generic [ref=e393]: linkedin
+              - generic [ref=e394]: Apr 11, 2026
+          - generic [ref=e395]:
+            - combobox "Job status for Senior Customer Success Manager" [ref=e396]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e397] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4387852322
+        - button "Score" [ref=e399] [cursor=pointer]
+      - generic [ref=e400]:
+        - generic [ref=e401]:
+          - generic [ref=e402]:
+            - paragraph [ref=e403]: Backend Team Lead
+            - paragraph [ref=e404]: Play Perfect · Tel Aviv District, Israel
+            - generic [ref=e405]:
+              - generic [ref=e406]: linkedin
+              - generic [ref=e407]: Apr 11, 2026
+          - generic [ref=e408]:
+            - combobox "Job status for Backend Team Lead" [ref=e409]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e410] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4350700754
+        - button "Score" [ref=e412] [cursor=pointer]
+      - generic [ref=e413]:
+        - generic [ref=e414]:
+          - generic [ref=e415]:
+            - paragraph [ref=e416]: Senior Campaign Manager
+            - paragraph [ref=e417]: Hunt Performance Marketing · Rishon LeZion, Center District, Israel
+            - generic [ref=e418]:
+              - generic [ref=e419]: linkedin
+              - generic [ref=e420]: Apr 11, 2026
+          - generic [ref=e421]:
+            - combobox "Job status for Senior Campaign Manager" [ref=e422]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e423] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4384444327
+        - button "Score" [ref=e425] [cursor=pointer]
+      - generic [ref=e426]:
+        - generic [ref=e427]:
+          - generic [ref=e428]:
+            - paragraph [ref=e429]: Senior Strategic Partnerships Manager
+            - paragraph [ref=e430]: Lemonade · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e431]:
+              - generic [ref=e432]: linkedin
+              - generic [ref=e433]: Apr 11, 2026
+          - generic [ref=e434]:
+            - combobox "Job status for Senior Strategic Partnerships Manager" [ref=e435]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e436] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4384320374
+        - button "Score" [ref=e438] [cursor=pointer]
+      - generic [ref=e439]:
+        - generic [ref=e440]:
+          - generic [ref=e441]:
+            - paragraph [ref=e442]: Full Stack Team Leader
+            - paragraph [ref=e443]: Check Point Software · Tel Aviv District, Israel
+            - generic [ref=e444]:
+              - generic [ref=e445]: linkedin
+              - generic [ref=e446]: Apr 11, 2026
+          - generic [ref=e447]:
+            - combobox "Job status for Full Stack Team Leader" [ref=e448]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e449] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4363162685
+        - button "Score" [ref=e451] [cursor=pointer]
+      - generic [ref=e452]:
+        - generic [ref=e453]:
+          - generic [ref=e454]:
+            - paragraph [ref=e455]: Senior Software Team Lead
+            - paragraph [ref=e456]: Nimble · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e457]:
+              - generic [ref=e458]: linkedin
+              - generic [ref=e459]: Apr 11, 2026
+          - generic [ref=e460]:
+            - combobox "Job status for Senior Software Team Lead" [ref=e461]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e462] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4382479084
+        - button "Score" [ref=e464] [cursor=pointer]
+      - generic [ref=e465]:
+        - generic [ref=e466]:
+          - generic [ref=e467]:
+            - paragraph [ref=e468]: Enablement Team Lead
+            - paragraph [ref=e469]: Atera · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e470]:
+              - generic [ref=e471]: linkedin
+              - generic [ref=e472]: Apr 11, 2026
+          - generic [ref=e473]:
+            - combobox "Job status for Enablement Team Lead" [ref=e474]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e475] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4380951916
+        - button "Score" [ref=e477] [cursor=pointer]
+      - generic [ref=e478]:
+        - generic [ref=e479]:
+          - generic [ref=e480]:
+            - paragraph [ref=e481]: Customer Success Team Lead
+            - paragraph [ref=e482]: Yuval HR · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e483]:
+              - generic [ref=e484]: linkedin
+              - generic [ref=e485]: Apr 11, 2026
+          - generic [ref=e486]:
+            - combobox "Job status for Customer Success Team Lead" [ref=e487]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e488] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4377638120
+        - button "Score" [ref=e490] [cursor=pointer]
+      - generic [ref=e491]:
+        - generic [ref=e492]:
+          - generic [ref=e493]:
+            - paragraph [ref=e494]: Data Ops Team Lead
+            - paragraph [ref=e495]: Discount Bank בנק דיסקונט · Rishon LeZion, Center District, Israel
+            - generic [ref=e496]:
+              - generic [ref=e497]: linkedin
+              - generic [ref=e498]: Apr 11, 2026
+          - generic [ref=e499]:
+            - combobox "Job status for Data Ops Team Lead" [ref=e500]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e501] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4372118082
+        - button "Score" [ref=e503] [cursor=pointer]
+      - generic [ref=e504]:
+        - generic [ref=e505]:
+          - generic [ref=e506]:
+            - paragraph [ref=e507]: Senior Software Engineer for AR/VR Systems - Apple Vision Pro
+            - paragraph [ref=e508]: Apple · Herzliya, Tel Aviv District, Israel
+            - generic [ref=e509]:
+              - generic [ref=e510]: linkedin
+              - generic [ref=e511]: Apr 11, 2026
+          - generic [ref=e512]:
+            - combobox "Job status for Senior Software Engineer for AR/VR Systems - Apple Vision Pro" [ref=e513]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e514] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4359196519
+        - button "Score" [ref=e516] [cursor=pointer]
+      - generic [ref=e517]:
+        - generic [ref=e518]:
+          - generic [ref=e519]:
+            - paragraph [ref=e520]: Platform Team Lead
+            - paragraph [ref=e521]: Komodor · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e522]:
+              - generic [ref=e523]: linkedin
+              - generic [ref=e524]: Apr 11, 2026
+          - generic [ref=e525]:
+            - combobox "Job status for Platform Team Lead" [ref=e526]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e527] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4359153120
+        - button "Score" [ref=e529] [cursor=pointer]
+      - generic [ref=e530]:
+        - generic [ref=e531]:
+          - generic [ref=e532]:
+            - paragraph [ref=e533]: Software Team Lead - Core Engineering
+            - paragraph [ref=e534]: Cyera · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e535]:
+              - generic [ref=e536]: linkedin
+              - generic [ref=e537]: Apr 11, 2026
+          - generic [ref=e538]:
+            - combobox "Job status for Software Team Lead - Core Engineering" [ref=e539]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e540] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4358297907
+        - button "Score" [ref=e542] [cursor=pointer]
+      - generic [ref=e543]:
+        - generic [ref=e544]:
+          - generic [ref=e545]:
+            - paragraph [ref=e546]: Full Stack Team Leader
+            - paragraph [ref=e547]: UR Tech Jobs · Kiryat Ono, Tel Aviv District, Israel
+            - generic [ref=e548]:
+              - generic [ref=e549]: linkedin
+              - generic [ref=e550]: Apr 11, 2026
+          - generic [ref=e551]:
+            - combobox "Job status for Full Stack Team Leader" [ref=e552]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e553] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4330153288
+        - button "Score" [ref=e555] [cursor=pointer]
+      - generic [ref=e556]:
+        - generic [ref=e557]:
+          - generic [ref=e558]:
+            - paragraph [ref=e559]: Team Lead
+            - paragraph [ref=e560]: Sunbit · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e561]:
+              - generic [ref=e562]: linkedin
+              - generic [ref=e563]: Apr 11, 2026
+          - generic [ref=e564]:
+            - combobox "Job status for Team Lead" [ref=e565]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e566] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4346158719
+        - button "Score" [ref=e568] [cursor=pointer]
+      - generic [ref=e569]:
+        - generic [ref=e570]:
+          - generic [ref=e571]:
+            - paragraph [ref=e572]: Senior User Acquisition Manager (Mobile Apps)
+            - paragraph [ref=e573]: FrontStory · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e574]:
+              - generic [ref=e575]: linkedin
+              - generic [ref=e576]: Apr 11, 2026
+          - generic [ref=e577]:
+            - combobox "Job status for Senior User Acquisition Manager (Mobile Apps)" [ref=e578]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e579] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4346285685
+        - button "Score" [ref=e581] [cursor=pointer]
+      - generic [ref=e582]:
+        - generic [ref=e583]:
+          - generic [ref=e584]:
+            - paragraph [ref=e585]: Senior Project Manager
+            - paragraph [ref=e586]: Travel Booster by Galor · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e587]:
+              - generic [ref=e588]: linkedin
+              - generic [ref=e589]: Apr 11, 2026
+          - generic [ref=e590]:
+            - combobox "Job status for Senior Project Manager" [ref=e591]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e592] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4344451897
+        - button "Score" [ref=e594] [cursor=pointer]
+      - generic [ref=e595]:
+        - generic [ref=e596]:
+          - generic [ref=e597]:
+            - paragraph [ref=e598]: Senior Manager, Global Demand Generation
+            - paragraph [ref=e599]: Classiq · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e600]:
+              - generic [ref=e601]: linkedin
+              - generic [ref=e602]: Apr 11, 2026
+          - generic [ref=e603]:
+            - combobox "Job status for Senior Manager, Global Demand Generation" [ref=e604]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e605] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4341211474
+        - button "Score" [ref=e607] [cursor=pointer]
+      - generic [ref=e608]:
+        - generic [ref=e609]:
+          - generic [ref=e610]:
+            - paragraph [ref=e611]: Senior Growth Manager - Apps
+            - paragraph [ref=e612]: Mixtiles · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e613]:
+              - generic [ref=e614]: linkedin
+              - generic [ref=e615]: Apr 11, 2026
+          - generic [ref=e616]:
+            - combobox "Job status for Senior Growth Manager - Apps" [ref=e617]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e618] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4312730996
+        - button "Score" [ref=e620] [cursor=pointer]
+      - generic [ref=e621]:
+        - generic [ref=e622]:
+          - generic [ref=e623]:
+            - paragraph [ref=e624]: Backend Team Leader
+            - paragraph [ref=e625]: Check Point Software · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e626]:
+              - generic [ref=e627]: linkedin
+              - generic [ref=e628]: Apr 11, 2026
+          - generic [ref=e629]:
+            - combobox "Job status for Backend Team Leader" [ref=e630]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e631] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4295975021
+        - button "Score" [ref=e633] [cursor=pointer]
+      - generic [ref=e634]:
+        - generic [ref=e635]:
+          - generic [ref=e636]:
+            - paragraph [ref=e637]: Platform Team Lead
+            - paragraph [ref=e638]: BlinkOps · Tel Aviv-Yafo, Tel Aviv District, Israel
+            - generic [ref=e639]:
+              - generic [ref=e640]: linkedin
+              - generic [ref=e641]: Apr 11, 2026
+          - generic [ref=e642]:
+            - combobox "Job status for Platform Team Lead" [ref=e643]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e644] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4270695147
+        - button "Score" [ref=e646] [cursor=pointer]
+      - generic [ref=e647]:
+        - generic [ref=e648]:
+          - generic [ref=e649]:
+            - paragraph [ref=e650]: Windows Developer Team Leader
+            - paragraph [ref=e651]: Fortinet · Herzliya, Tel Aviv District, Israel
+            - generic [ref=e652]:
+              - generic [ref=e653]: linkedin
+              - generic [ref=e654]: Apr 11, 2026
+          - generic [ref=e655]:
+            - combobox "Job status for Windows Developer Team Leader" [ref=e656]:
+              - option "— Set Status —" [selected]
+              - option "Saved"
+              - option "Applied"
+              - option "Interviewing"
+              - option "Offer"
+              - option "Rejected"
+            - link "View Job" [ref=e657] [cursor=pointer]:
+              - /url: https://www.linkedin.com/jobs/view/4176509309
+        - button "Score" [ref=e659] [cursor=pointer]

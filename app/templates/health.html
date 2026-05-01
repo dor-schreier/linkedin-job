@@ -55,7 +55,7 @@
 </head>
 <body class="bg-background text-on-surface min-h-screen">
   {% include "partials/nav.html" %}
-  <div class="ml-64 min-h-screen">
+  <div id="app-content" class="min-h-screen" style="margin-left: 256px">
     <header class="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-8 py-4 border-b border-outline-variant/15 flex items-center justify-between">
       <h2 class="text-xl font-bold font-headline">Health Check</h2>
     </header>
@@ -66,6 +66,7 @@
         <p class="text-sm text-on-surface-variant">Database: <span class="text-on-surface font-medium">{{ "OK" if db_exists else "MISSING" }}</span></p>
         <p class="text-sm text-on-surface-variant">Tables: <span class="text-on-surface font-medium">{{ table_count }}</span></p>
         <p class="text-sm text-on-surface-variant">WAL Mode: <span class="text-on-surface font-medium">{{ "ON" if wal_mode else "OFF" }}</span></p>
+        <p class="text-sm text-on-surface-variant">LLM: <span class="font-medium {{ 'text-green-400' if llm_ok else 'text-error' }}">{{ "OK" if llm_ok else "UNAVAILABLE" }}</span> <span class="text-on-surface-variant">({{ llm_provider }} / {{ llm_model }})</span>{% if llm_error %} <span class="text-error text-xs">— {{ llm_error }}</span>{% endif %}</p>
       </div>
     </div>
   </div>

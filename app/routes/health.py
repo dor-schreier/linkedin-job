@@ -27,9 +27,15 @@ def health(request: Request, db: Session = Depends(get_session)):
             wal_mode = mode == "wal"
         finally:
             conn.close()
+    from app.services.llm_service import check_llm_health
+    llm = check_llm_health()
     return templates.TemplateResponse(request, "health.html", _ctx(db, "health", {
         "status": "ok",
         "db_exists": db_exists,
         "table_count": table_count,
         "wal_mode": wal_mode,
+        "llm_ok": llm["ok"],
+        "llm_provider": llm["provider"],
+        "llm_model": llm["model"],
+        "llm_error": llm["error"],
     }))

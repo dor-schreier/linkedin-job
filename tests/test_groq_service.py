@@ -1,6 +1,6 @@
 import types
 import pytest
-from app.services import groq_service as gs
+from app.services import llm_service as gs
 
 
 class _FakeMessage:
@@ -97,6 +97,7 @@ def test_parse_recommendations_garbage():
 # --- Integration tests with mocked client ---
 
 def test_get_fit_score_calls_correct_model(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
     fake = _patch_client(monkeypatch,
         '{"fit_score": 75, "fit_summary": "solid", "salary_estimated": "$100k-$120k"}')
     result = gs.get_fit_score_and_salary(_make_job(), _make_profile())
@@ -134,6 +135,7 @@ def test_get_fit_score_listed_salary_in_prompt(monkeypatch):
 
 
 def test_get_profile_recommendations_uses_quality_model(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
     fake = _patch_client(monkeypatch,
         '{"recommendations": ["add aws","get cert","tighten title"]}')
     out = gs.get_profile_recommendations(_make_profile())

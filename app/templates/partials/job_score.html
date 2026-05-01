@@ -1,4 +1,74 @@
-{% if job.fit_score is not none %}
+{% if breakdown %}
+  {# Enhanced breakdown display #}
+  <div class="mt-2 pt-2 space-y-2">
+
+    {# Priority badge #}
+    <div class="flex items-center gap-2">
+      {% if breakdown.application_priority == 'High' %}
+      <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800">High Priority</span>
+      {% elif breakdown.application_priority == 'Medium' %}
+      <span class="px-2 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-800">Medium Priority</span>
+      {% else %}
+      <span class="px-2 py-0.5 rounded text-xs font-bold bg-surface-container text-outline">Low Priority</span>
+      {% endif %}
+      <span class="text-xs font-bold text-on-surface">{{ breakdown.overall_score }}/100</span>
+      <span class="text-xs px-2 py-0.5 rounded
+        {% if label == 'Excellent' %}bg-primary-container text-on-primary-container
+        {% elif label == 'Good' %}bg-surface-container-high text-on-surface
+        {% elif label == 'Fair' %}bg-surface-container text-on-surface-variant
+        {% else %}bg-surface-container text-outline{% endif %}">{{ label }}</span>
+    </div>
+
+    {# Matching qualifications #}
+    {% if breakdown.matching_qualifications %}
+    <div>
+      <p class="text-[10px] uppercase tracking-wider font-bold text-on-surface-variant mb-1">Matching</p>
+      <ul class="space-y-0.5">
+        {% for q in breakdown.matching_qualifications %}
+        <li class="flex items-start gap-1 text-xs text-green-700">
+          <span class="material-symbols-outlined text-xs mt-px">check_circle</span>{{ q }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {# Missing qualifications #}
+    {% if breakdown.missing_qualifications %}
+    <div>
+      <p class="text-[10px] uppercase tracking-wider font-bold text-on-surface-variant mb-1">Missing</p>
+      <ul class="space-y-0.5">
+        {% for q in breakdown.missing_qualifications %}
+        <li class="flex items-start gap-1 text-xs text-red-600">
+          <span class="material-symbols-outlined text-xs mt-px">cancel</span>{{ q }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {# Experience alignment #}
+    {% if breakdown.experience_alignment %}
+    <p class="text-xs text-on-surface-variant"><span class="font-bold">Seniority:</span> {{ breakdown.experience_alignment }}</p>
+    {% endif %}
+
+    {# Red flags #}
+    {% if breakdown.red_flags %}
+    <div class="flex flex-wrap gap-1">
+      {% for flag in breakdown.red_flags %}
+      <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700">⚠ {{ flag }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Summary #}
+    {% if breakdown.summary %}
+    <p class="text-xs text-on-surface-variant italic">{{ breakdown.summary }}</p>
+    {% endif %}
+
+  </div>
+{% elif job.fit_score is not none %}
+  {# Legacy simple display #}
   <div class="mt-2 pt-2 space-y-1">
     <div class="flex items-center gap-2">
       <span class="text-xs font-bold text-on-surface">Fit: {{ job.fit_score }}/100</span>

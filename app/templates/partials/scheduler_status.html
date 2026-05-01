@@ -1,0 +1,34 @@
+<div id="scheduler-status" class="space-y-4">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      {% if scheduler_running %}
+      <span class="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse"></span>
+      <span class="text-sm font-semibold text-on-surface">Scheduler Active</span>
+      {% else %}
+      <span class="w-2.5 h-2.5 rounded-full bg-outline"></span>
+      <span class="text-sm font-semibold text-on-surface-variant">Scheduler Paused</span>
+      {% endif %}
+    </div>
+    <button
+      hx-post="/scheduler/toggle"
+      hx-target="#scheduler-status"
+      hx-swap="outerHTML"
+      class="px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors
+             {% if scheduler_running %}border-error/40 text-error hover:bg-error/10{% else %}border-primary-fixed-dim text-primary hover:bg-primary-container/30{% endif %}">
+      {% if scheduler_running %}Pause{% else %}Resume{% endif %}
+    </button>
+  </div>
+
+  <div class="grid grid-cols-2 gap-3 text-xs">
+    <div class="bg-surface-container p-3 rounded-lg">
+      <p class="text-outline mb-1">Interval</p>
+      <p class="font-semibold text-on-surface">Every {{ scheduler_cfg.interval_hours }}h</p>
+    </div>
+    <div class="bg-surface-container p-3 rounded-lg">
+      <p class="text-outline mb-1">Next Run</p>
+      <p class="font-semibold text-on-surface">
+        {% if next_run %}{{ next_run.strftime("%b %d, %H:%M") }}{% else %}—{% endif %}
+      </p>
+    </div>
+  </div>
+</div>

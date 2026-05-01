@@ -1,0 +1,96 @@
+<div id="job-intelligence-panel">
+  {% if error %}
+  <div class="bg-error/10 border border-error/30 text-error rounded-lg px-4 py-3 text-sm mb-4">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  {% if intelligence %}
+    {% if intelligence.required_skills %}
+    <div class="mb-4">
+      <p class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Required Skills</p>
+      <div class="flex flex-wrap gap-1.5">
+        {% for skill in intelligence.required_skills %}
+        <span class="px-2.5 py-1 bg-primary-container text-on-primary-container text-xs font-semibold rounded-full">{{ skill }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if intelligence.preferred_skills %}
+    <div class="mb-4">
+      <p class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Preferred Skills</p>
+      <div class="flex flex-wrap gap-1.5">
+        {% for skill in intelligence.preferred_skills %}
+        <span class="px-2.5 py-1 bg-secondary-container text-on-secondary-container text-xs font-semibold rounded-full">{{ skill }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if intelligence.tech_stack %}
+    <div class="mb-4">
+      <p class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Tech Stack</p>
+      <div class="flex flex-wrap gap-1.5">
+        {% for tech in intelligence.tech_stack %}
+        <span class="px-2.5 py-1 bg-surface-container text-on-surface text-xs font-semibold rounded-full border border-outline-variant/30">{{ tech }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="flex flex-wrap gap-2 mb-4">
+      {% if intelligence.seniority_level %}
+      <span class="px-3 py-1 bg-surface-container-high text-on-surface text-xs font-bold rounded uppercase tracking-tight">
+        {{ intelligence.seniority_level }}
+      </span>
+      {% endif %}
+      {% if intelligence.remote_policy %}
+      <span class="px-3 py-1 bg-surface-container-high text-on-surface text-xs font-bold rounded uppercase tracking-tight">
+        {{ intelligence.remote_policy }}
+      </span>
+      {% endif %}
+    </div>
+
+    {% if intelligence.team_size_signals %}
+    <div class="mb-3">
+      <p class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Team Size Signals</p>
+      <p class="text-sm text-on-surface-variant">{{ intelligence.team_size_signals }}</p>
+    </div>
+    {% endif %}
+
+    {% if intelligence.salary_signals %}
+    <div class="mb-3">
+      <p class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Salary Signals</p>
+      <p class="text-sm text-on-surface-variant">{{ intelligence.salary_signals }}</p>
+    </div>
+    {% endif %}
+
+    {% if intelligence.red_flags %}
+    <div class="mb-3">
+      <p class="text-xs font-bold uppercase tracking-wider text-error mb-2">Red Flags</p>
+      <ul class="space-y-1">
+        {% for flag in intelligence.red_flags %}
+        <li class="flex items-start gap-2 text-sm text-error/80">
+          <span class="material-symbols-outlined text-sm mt-0.5 shrink-0">warning</span>
+          {{ flag }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+  {% else %}
+  <div class="text-center py-6">
+    <p class="text-sm text-on-surface-variant mb-4">No intelligence extracted yet.</p>
+    <button
+      hx-post="/jobs/{{ job.id }}/reextract"
+      hx-target="#job-intelligence-panel"
+      hx-swap="outerHTML"
+      hx-indicator="#job-intelligence-panel"
+      class="px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity">
+      Extract Intelligence
+    </button>
+  </div>
+  {% endif %}
+</div>

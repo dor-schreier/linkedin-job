@@ -1,0 +1,43 @@
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]: Job Finder
+    - generic [ref=e4]:
+      - link "Jobs" [ref=e5] [cursor=pointer]:
+        - /url: /jobs
+      - link "Profile" [ref=e6] [cursor=pointer]:
+        - /url: /profile
+      - link "Search Config" [ref=e7] [cursor=pointer]:
+        - /url: /search-config
+      - link "Watch Rules" [ref=e8] [cursor=pointer]:
+        - /url: /watch-rules
+  - generic [ref=e9]:
+    - heading "Profile" [level=1] [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: LinkedIn URL
+        - textbox "LinkedIn URL" [ref=e14]:
+          - /placeholder: https://www.linkedin.com/in/yourname
+          - text: https://www.linkedin.com/in/testuser
+      - generic [ref=e15]:
+        - generic [ref=e16]: Current Title
+        - textbox "Current Title" [ref=e17]: Software Engineer
+      - generic [ref=e18]:
+        - generic [ref=e19]: Target Title
+        - textbox "Target Title" [ref=e20]: Senior Software Engineer
+      - generic [ref=e21]:
+        - generic [ref=e22]: Years of Experience
+        - spinbutton "Years of Experience" [ref=e23]: "5"
+      - generic [ref=e24]:
+        - generic [ref=e25]: Skills
+        - textbox "Skills" [ref=e26]: Python, FastAPI, SQLAlchemy, HTMX, Docker
+      - button "Save Profile" [ref=e27] [cursor=pointer]
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - heading "AI Insights" [level=2] [ref=e30]
+        - button "Analyze Profile" [active] [ref=e31] [cursor=pointer]
+      - list [ref=e39]:
+        - listitem [ref=e40]: Develop and showcase a personal project on GitHub utilizing Python, FastAPI, and Docker to demonstrate expertise
+        - listitem [ref=e41]: Expand skill set to include cloud platforms such as AWS or Azure to increase versatility
+        - listitem [ref=e42]: Pursue a certification in software engineering, such as the Certified Professional in Software Engineering (CPSE) credential, to boost credibility
+        - listitem [ref=e43]: Highlight transferable skills like problem-solving, teamwork, and communication in the LinkedIn profile and future resumes
+        - listitem [ref=e44]: Network with current Senior Software Engineers in the industry to gain insights and best practices
