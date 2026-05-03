@@ -5,7 +5,7 @@ data/jobs.db-shm
 __pycache__/
 *.pyc
 .venv/
-
+venv/
 .playwright/
 .playwright-cli
 
@@ -17,3 +17,4 @@ frontend/dist/
 # Local planning & notes
 .specs/
 .suggestions/
+ 
