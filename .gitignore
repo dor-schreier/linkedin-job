@@ -5,3 +5,7 @@ data/jobs.db-shm
 __pycache__/
 *.pyc
 .venv/
+.playwright-cli/
+.specs/
+.suggestions/
+venv/*
