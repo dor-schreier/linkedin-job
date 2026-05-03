@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["cv"])
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory="app/services/cv_export/templates")
 
 
 def _get_repo(session: Session = Depends(get_session)) -> JobRepository:
@@ -82,7 +82,7 @@ def cv_export(
         )
 
     try:
-        from app.scraper import scrape_linkedin_profile, LinkedInAuthError
+        from app.scraper import scrape_linkedin_profile
         profile = scrape_linkedin_profile(profile_url)
     except Exception as exc:
         logger.error("LinkedIn scrape failed for %s: %s", profile_url, exc)

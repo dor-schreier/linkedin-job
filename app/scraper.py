@@ -1,4 +1,5 @@
 """Scraper service — wraps JobSpy, normalizes rows, deduplicates, and persists jobs."""
+from __future__ import annotations
 import hashlib
 import json
 import logging
@@ -176,7 +177,7 @@ class LinkedInAuthError(Exception):
     """Raised when LinkedIn redirects to the login wall."""
 
 
-def scrape_linkedin_profile(profile_url: str) -> "LinkedInProfile":
+def scrape_linkedin_profile(profile_url: str) -> "LinkedInProfile":  # noqa: F821 — imported inside function body
     """Scrape a LinkedIn profile page and return a populated LinkedInProfile.
 
     Requires LINKEDIN_SESSION_COOKIE set in the environment.
@@ -195,10 +196,7 @@ def scrape_linkedin_profile(profile_url: str) -> "LinkedInProfile":
         LinkedInPublication,
         LinkedInHonor,
         LinkedInVolunteer,
-        LinkedInRecommendation,
         LinkedInCourse,
-        LinkedInTestScore,
-        LinkedInFeatured,
     )
 
     session_cookie = os.getenv("LINKEDIN_SESSION_COOKIE", "")

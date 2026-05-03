@@ -1,6 +1,5 @@
 """Watch-rule matching service. Runs after a scrape inserts new jobs."""
 import logging
-from typing import Iterable
 
 from sqlalchemy.orm import Session
 
