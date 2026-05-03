@@ -20,7 +20,7 @@ router = APIRouter()
 ALLOWED_RULE_TYPES = {"company", "keyword", "sector"}
 
 
-@router.get("/api/watch-rules", response_model=list[WatchRuleResponse], tags=["watch-rules"])
+@router.get("/watch-rules", response_model=list[WatchRuleResponse], tags=["watch-rules"])
 def list_watch_rules(db: Session = Depends(get_session)):
     repo = JobRepository(db)
     rules = repo.list_watch_rules(active_only=False)
@@ -36,7 +36,7 @@ def list_watch_rules(db: Session = Depends(get_session)):
     ])
 
 
-@router.post("/api/watch-rules", response_model=WatchRuleResponse, tags=["watch-rules"])
+@router.post("/watch-rules", response_model=WatchRuleResponse, tags=["watch-rules"])
 def create_watch_rule(body: CreateWatchRuleRequest, db: Session = Depends(get_session)):
     if body.rule_type not in ALLOWED_RULE_TYPES:
         raise HTTPException(status_code=422, detail=f"Invalid rule_type: {body.rule_type}")
@@ -51,7 +51,7 @@ def create_watch_rule(body: CreateWatchRuleRequest, db: Session = Depends(get_se
     ).model_dump(mode="json"), status_code=201)
 
 
-@router.patch("/api/watch-rules/{rule_id}", response_model=WatchRuleResponse, tags=["watch-rules"])
+@router.patch("/watch-rules/{rule_id}", response_model=WatchRuleResponse, tags=["watch-rules"])
 def toggle_watch_rule(rule_id: int, db: Session = Depends(get_session)):
     repo = JobRepository(db)
     rule = repo.toggle_watch_rule(rule_id)
@@ -63,7 +63,7 @@ def toggle_watch_rule(rule_id: int, db: Session = Depends(get_session)):
     ).model_dump(mode="json"))
 
 
-@router.delete("/api/watch-rules/{rule_id}", status_code=204, tags=["watch-rules"])
+@router.delete("/watch-rules/{rule_id}", status_code=204, tags=["watch-rules"])
 def delete_watch_rule(rule_id: int, db: Session = Depends(get_session)):
     repo = JobRepository(db)
     repo.delete_watch_rule(rule_id)
@@ -71,7 +71,7 @@ def delete_watch_rule(rule_id: int, db: Session = Depends(get_session)):
     return Response(status_code=204)
 
 
-@router.get("/api/watch-matches", response_model=WatchMatchesResponse, tags=["watch-rules"])
+@router.get("/watch-matches", response_model=WatchMatchesResponse, tags=["watch-rules"])
 def list_watch_matches(db: Session = Depends(get_session)):
     repo = JobRepository(db)
     unread = repo.list_unread_notifications_with_jobs()
@@ -103,7 +103,7 @@ def mark_notifications_read(db: Session = Depends(get_session)):
     return JSONResponse(MarkReadResponse(marked=count).model_dump())
 
 
-@router.get("/api/notifications/unread-count", response_model=NotificationCountResponse, tags=["notifications"])
+@router.get("/notifications/unread-count", response_model=NotificationCountResponse, tags=["notifications"])
 def unread_count(db: Session = Depends(get_session)):
     repo = JobRepository(db)
     return JSONResponse(NotificationCountResponse(count=repo.count_unread_notifications()).model_dump())

@@ -40,6 +40,8 @@ class JobResponse(BaseModel):
     scraped_at: datetime
     sector: Optional[str] = None
     company_type: Optional[str] = None
+    required_skills: list[str] = []
+    tech_stack: list[str] = []
 
     @field_validator("status", mode="before")
     @classmethod
@@ -57,6 +59,7 @@ class JobListResponse(BaseModel):
 
 class JobDetailResponse(JobResponse):
     description: Optional[str] = None
+    company_summary: Optional[str] = None
     intelligence: Optional[JobIntelligence] = None
     breakdown: Optional[FitScoreBreakdown] = None
 

@@ -191,6 +191,7 @@ class KeywordGap(BaseModel):
     """A keyword found in job intelligence data, with profile coverage info."""
 
     keyword: str
+    count: int
     frequency_pct: float  # % of matched jobs containing this keyword
     in_profile: bool
 

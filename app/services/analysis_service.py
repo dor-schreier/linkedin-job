@@ -66,7 +66,7 @@ def compute_keyword_gaps(jobs: list, profile_skills: str) -> list[dict]:
         if freq_pct <= 20:
             continue
         in_profile = keyword in profile_set
-        gaps.append(KeywordGap(keyword=keyword, frequency_pct=round(freq_pct, 1), in_profile=in_profile))
+        gaps.append(KeywordGap(keyword=keyword, count=count, frequency_pct=round(freq_pct, 1), in_profile=in_profile))
 
     # Sort: missing skills first (actionable), then covered; within each group by frequency desc
     gaps.sort(key=lambda g: (g.in_profile, -g.frequency_pct))

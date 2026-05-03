@@ -29,12 +29,12 @@ class JobRepository:
     def list_jobs(
         self,
         status: Optional[JobStatus] = None,
-        company: Optional[str] = None,
-        location: Optional[str] = None,
+        company: Optional[list[str]] = None,
+        location: Optional[list[str]] = None,
         salary_min_filter: Optional[float] = None,
         fresh_only: bool = False,
         sort: Optional[str] = None,
-        sector: Optional[str] = None,
+        sector: Optional[list[str]] = None,
         company_type: Optional[str] = None,
         source: Optional[str] = None,
         rated_only: bool = False,
@@ -57,9 +57,9 @@ class JobRepository:
         else:
             q = q.filter(Job.status != JobStatus.REJECTED)
         if company:
-            q = q.filter(Job.company.ilike(f"%{company}%"))
+            q = q.filter(Job.company.in_(company))
         if location:
-            q = q.filter(Job.location == location)
+            q = q.filter(Job.location.in_(location))
         if salary_min_filter is not None:
             q = q.filter(Job.salary_min >= salary_min_filter)
         if source:
@@ -79,7 +79,7 @@ class JobRepository:
         if sector or company_type:
             q = q.join(Company, Job.company_id == Company.id)
             if sector:
-                q = q.filter(Company.sector == sector)
+                q = q.filter(Company.sector.in_(sector))
             if company_type:
                 q = q.filter(Company.company_type == company_type)
         if sort == "freshest":
@@ -99,11 +99,11 @@ class JobRepository:
     def count_jobs_filtered(
         self,
         status: Optional[JobStatus] = None,
-        company: Optional[str] = None,
-        location: Optional[str] = None,
+        company: Optional[list[str]] = None,
+        location: Optional[list[str]] = None,
         salary_min_filter: Optional[float] = None,
         fresh_only: bool = False,
-        sector: Optional[str] = None,
+        sector: Optional[list[str]] = None,
         company_type: Optional[str] = None,
         source: Optional[str] = None,
         rated_only: bool = False,
@@ -126,9 +126,9 @@ class JobRepository:
         if hide_rated:
             q = q.filter(Job.user_rating.is_(None))
         if company:
-            q = q.filter(Job.company.ilike(f"%{company}%"))
+            q = q.filter(Job.company.in_(company))
         if location:
-            q = q.filter(Job.location == location)
+            q = q.filter(Job.location.in_(location))
         if salary_min_filter is not None:
             q = q.filter(Job.salary_min >= salary_min_filter)
         if source:
@@ -146,7 +146,7 @@ class JobRepository:
         if sector or company_type:
             q = q.join(Company, Job.company_id == Company.id)
             if sector:
-                q = q.filter(Company.sector == sector)
+                q = q.filter(Company.sector.in_(sector))
             if company_type:
                 q = q.filter(Company.company_type == company_type)
         return q.count()

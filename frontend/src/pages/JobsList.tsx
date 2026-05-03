@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -29,6 +29,8 @@ interface Job {
   scraped_at: string
   sector?: string
   company_type?: string
+  required_skills: string[]
+  tech_stack: string[]
 }
 
 interface Stats {
@@ -44,10 +46,11 @@ interface Stats {
 
 interface Filters {
   status: string
-  company: string
-  location: string
-  sector: string
+  company: string[]
+  location: string[]
+  sector: string[]
   source: string
+  company_type: string
   sort: string
   fresh_only: boolean
   hide_rated: boolean
@@ -58,10 +61,11 @@ interface Filters {
 
 const DEFAULT_FILTERS: Filters = {
   status: '',
-  company: '',
-  location: '',
-  sector: '',
+  company: [],
+  location: [],
+  sector: [],
   source: '',
+  company_type: '',
   sort: 'fit_desc',
   fresh_only: false,
   hide_rated: false,
@@ -75,10 +79,11 @@ const DEFAULT_FILTERS: Filters = {
 function useJobs(filters: Filters, page: number) {
   const params = new URLSearchParams()
   if (filters.status) params.set('status', filters.status)
-  if (filters.company) params.set('company', filters.company)
-  if (filters.location) params.set('location', filters.location)
-  if (filters.sector) params.set('sector', filters.sector)
+  if (filters.company.length) params.set('company', filters.company.join(','))
+  if (filters.location.length) params.set('location', filters.location.join(','))
+  if (filters.sector.length) params.set('sector', filters.sector.join(','))
   if (filters.source) params.set('source', filters.source)
+  if (filters.company_type) params.set('company_type', filters.company_type)
   if (filters.sort) params.set('sort', filters.sort)
   if (filters.fresh_only) params.set('fresh_only', '1')
   if (filters.hide_rated) params.set('hide_rated', '1')
@@ -111,6 +116,19 @@ function useUpdateStatus() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs'] }),
   })
+}
+
+function useFilterOptions() {
+  const fetchValues = async (url: string): Promise<string[]> => {
+    const res = await fetch(url, { headers: { Accept: 'application/json' } })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.values as string[]).filter(Boolean).sort()
+  }
+  const companies = useQuery({ queryKey: ['filter-options', 'company'], queryFn: () => fetchValues('/api/reject-rules/property-values?property=company'), staleTime: 60_000 })
+  const locations = useQuery({ queryKey: ['filter-options', 'location'], queryFn: () => fetchValues('/api/reject-rules/locations'), staleTime: 60_000 })
+  const sectors = useQuery({ queryKey: ['filter-options', 'sector'], queryFn: () => fetchValues('/api/reject-rules/property-values?property=sector'), staleTime: 60_000 })
+  return { companies: companies.data ?? [], locations: locations.data ?? [], sectors: sectors.data ?? [] }
 }
 
 function useRateJob() {
@@ -151,6 +169,17 @@ function StarRating({ value, onRate }: { value?: number | null; onRate: (r: numb
   )
 }
 
+function daysAgo(dateStr?: string): string {
+  if (!dateStr) return '—'
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000)
+  if (diff < 0) return dateStr
+  if (diff === 0) return 'today'
+  if (diff === 1) return '1d ago'
+  if (diff < 7) return `${diff}d ago`
+  if (diff < 30) return `${Math.floor(diff / 7)}w ago`
+  return `${Math.floor(diff / 30)}mo ago`
+}
+
 function StatPill({ icon, value, label, highlight }: { icon: string; value: string | number; label: string; highlight?: boolean }) {
   return (
     <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${highlight ? 'bg-primary-container' : 'bg-surface-container-lowest'}`}>
@@ -163,6 +192,89 @@ function StatPill({ icon, value, label, highlight }: { icon: string; value: stri
   )
 }
 
+function MultiSelectDropdown({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string
+  options: string[]
+  selected: string[]
+  onChange: (values: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [open])
+
+  const filtered = options.filter((o) => o.toLowerCase().includes(search.toLowerCase()))
+
+  function toggle(val: string) {
+    onChange(selected.includes(val) ? selected.filter((v) => v !== val) : [...selected, val])
+  }
+
+  const buttonLabel = selected.length === 0 ? `All ${label}s` : selected.length === 1 ? selected[0] : `${selected.length} ${label}s`
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors ${
+          selected.length > 0 ? 'bg-primary/15 text-primary font-medium' : 'bg-surface-container-low text-on-surface'
+        }`}
+      >
+        <span className="truncate max-w-[120px]">{buttonLabel}</span>
+        <span className="material-symbols-outlined text-[14px]">{open ? 'expand_less' : 'expand_more'}</span>
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 min-w-[200px] bg-surface-container-low rounded-xl shadow-lg border border-outline-variant/20 overflow-hidden">
+          {options.length > 8 && (
+            <div className="p-2 border-b border-outline-variant/20">
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full px-2 py-1 bg-surface-container border-none rounded text-sm text-on-surface placeholder:text-outline focus:outline-none"
+              />
+            </div>
+          )}
+          <div className="max-h-56 overflow-y-auto py-1">
+            {filtered.length === 0 && <p className="px-3 py-2 text-xs text-outline">No results</p>}
+            {filtered.map((opt) => (
+              <label key={opt} className="flex items-center gap-2 px-3 py-1.5 text-sm text-on-surface hover:bg-surface-container cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(opt)}
+                  onChange={() => toggle(opt)}
+                  className="w-3.5 h-3.5 rounded accent-primary"
+                />
+                <span className="truncate">{opt}</span>
+              </label>
+            ))}
+          </div>
+          {selected.length > 0 && (
+            <div className="border-t border-outline-variant/20 p-2">
+              <button onClick={() => onChange([])} className="text-xs text-outline hover:text-error transition-colors w-full text-left px-1">
+                Clear selection
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const STATUS_OPTIONS = ['', 'NEW', 'SAVED', 'APPLIED', 'INTERVIEWING', 'OFFER', 'REJECTED', 'rated']
 const SORT_OPTIONS = [
   { value: 'fit_desc', label: 'Best Fit First' },
@@ -171,11 +283,23 @@ const SORT_OPTIONS = [
   { value: 'rating_desc', label: 'Top Rated' },
   { value: 'fit_asc', label: 'Worst Fit First' },
 ]
+const COMPANY_TYPE_OPTIONS = ['', 'corporate', 'startup', 'scaleup', 'agency', 'non-profit', 'government', 'unknown']
+const SOURCE_OPTIONS = ['', 'linkedin', 'indeed', 'glassdoor', 'zip_recruiter']
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
+const STORAGE_KEY = 'jobsListFilters'
+
+function loadFilters(): Filters {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY)
+    if (raw) return { ...DEFAULT_FILTERS, ...JSON.parse(raw) }
+  } catch { /* ignore */ }
+  return DEFAULT_FILTERS
+}
+
 export default function JobsList() {
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
+  const [filters, setFilters] = useState<Filters>(loadFilters)
   const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkStatus, setBulkStatus] = useState('')
@@ -183,6 +307,11 @@ export default function JobsList() {
   const { data, isLoading, error } = useJobs(filters, page)
   const updateStatus = useUpdateStatus()
   const rateJob = useRateJob()
+  const filterOptions = useFilterOptions()
+
+  useEffect(() => {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
+  }, [filters])
 
   const jobs = data?.jobs ?? []
   const stats = data?.stats
@@ -264,7 +393,7 @@ export default function JobsList() {
 
         {/* Filters */}
         <div className="bg-surface-container-lowest rounded-xl p-4 space-y-3">
-          {/* Search + sort row */}
+          {/* Search + sort + status row */}
           <div className="flex gap-3 flex-wrap">
             <div className="flex-1 min-w-[180px] relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" style={{ fontSize: 16 }}>search</span>
@@ -295,6 +424,30 @@ export default function JobsList() {
               ))}
             </select>
           </div>
+          {/* Detailed filters row */}
+          <div className="flex gap-3 flex-wrap">
+            <MultiSelectDropdown label="Company" options={filterOptions.companies} selected={filters.company} onChange={(v) => setFilter('company', v)} />
+            <MultiSelectDropdown label="Location" options={filterOptions.locations} selected={filters.location} onChange={(v) => setFilter('location', v)} />
+            <MultiSelectDropdown label="Sector" options={filterOptions.sectors} selected={filters.sector} onChange={(v) => setFilter('sector', v)} />
+            <select
+              value={filters.source}
+              onChange={(e) => setFilter('source', e.target.value)}
+              className="px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              {SOURCE_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s || 'All Sources'}</option>
+              ))}
+            </select>
+            <select
+              value={filters.company_type}
+              onChange={(e) => setFilter('company_type', e.target.value)}
+              className="px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              {COMPANY_TYPE_OPTIONS.map((t) => (
+                <option key={t} value={t}>{t || 'All Types'}</option>
+              ))}
+            </select>
+          </div>
           {/* Toggle filters */}
           <div className="flex flex-wrap gap-2 text-xs">
             {([
@@ -315,7 +468,12 @@ export default function JobsList() {
                 {label}
               </button>
             ))}
-            {(filters.q || filters.status || filters.sector || filters.source || Object.entries(filters).some(([k, v]) => k !== 'sort' && v && v !== DEFAULT_FILTERS[k as keyof Filters])) && (
+            {Object.entries(filters).some(([k, v]) => {
+              if (k === 'sort') return false
+              const def = DEFAULT_FILTERS[k as keyof Filters]
+              if (Array.isArray(v)) return v.length > 0
+              return v && v !== def
+            }) && (
               <button
                 onClick={() => { setFilters(DEFAULT_FILTERS); setPage(1) }}
                 className="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-error transition-colors"
@@ -385,13 +543,13 @@ export default function JobsList() {
               {jobs.map((job) => (
                 <div
                   key={job.id}
-                  className={`grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-4 py-3 items-center cursor-pointer transition-colors ${
+                  className={`grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-4 py-3 items-start cursor-pointer transition-colors ${
                     selectedIds.has(job.id) ? 'bg-primary-container/30' : 'hover:bg-surface-container'
                   } ${job.is_rejected ? 'opacity-50' : ''}`}
                   onClick={() => navigate(`/jobs/${job.id}`)}
                 >
                   {/* Checkbox */}
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(job.id)}
@@ -412,20 +570,28 @@ export default function JobsList() {
                       {job.sector && <Badge color="blue">{job.sector}</Badge>}
                       {!job.is_active && <Badge color="default">Inactive</Badge>}
                     </div>
-                  </div>
-
-                  {/* Fit score */}
-                  <div className="text-right">
-                    <FitPill score={job.fit_score} />
+                    {((job.required_skills?.length ?? 0) > 0 || (job.tech_stack?.length ?? 0) > 0) && (
+                      <div className="flex gap-1 mt-1.5 flex-wrap">
+                        {(job.required_skills ?? []).slice(0, 5).map((s) => (
+                          <span key={s} className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary font-medium">{s}</span>
+                        ))}
+                        {(job.tech_stack ?? []).slice(0, 4).map((s) => (
+                          <span key={s} className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container text-on-surface-variant">{s}</span>
+                        ))}
+                      </div>
+                    )}
                     {job.fit_summary && (
-                      <p className="text-[10px] text-outline mt-0.5 max-w-[120px] truncate text-right">
-                        {job.fit_summary}
-                      </p>
+                      <p className="text-[11px] text-on-surface-variant mt-1.5 leading-relaxed">{job.fit_summary}</p>
                     )}
                   </div>
 
+                  {/* Fit score */}
+                  <div className="text-right pt-0.5">
+                    <FitPill score={job.fit_score} />
+                  </div>
+
                   {/* Status */}
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
                     <select
                       value={job.status}
                       onChange={(e) => updateStatus.mutate({ jobId: job.id, status: e.target.value })}
@@ -438,7 +604,7 @@ export default function JobsList() {
                   </div>
 
                   {/* Rating */}
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
                     <StarRating
                       value={job.user_rating}
                       onRate={(r) => rateJob.mutate({ jobId: job.id, rating: r })}
@@ -446,8 +612,8 @@ export default function JobsList() {
                   </div>
 
                   {/* Date */}
-                  <div className="text-[11px] text-outline whitespace-nowrap">
-                    {job.date_posted || '—'}
+                  <div className="text-[11px] text-outline whitespace-nowrap text-right pt-0.5" title={job.date_posted ?? ''}>
+                    {daysAgo(job.date_posted)}
                   </div>
                 </div>
               ))}

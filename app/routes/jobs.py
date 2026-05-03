@@ -59,6 +59,12 @@ def _days_since_posted(job) -> Optional[int]:
 
 
 def _job_to_response_dict(job) -> dict:
+    intelligence = {}
+    if job.intelligence_json:
+        try:
+            intelligence = json.loads(job.intelligence_json)
+        except (json.JSONDecodeError, ValueError):
+            pass
     return {
         "id": job.id,
         "title": job.title,
@@ -79,6 +85,8 @@ def _job_to_response_dict(job) -> dict:
         "scraped_at": job.scraped_at.isoformat() if job.scraped_at else None,
         "sector": job.company_info.sector if job.company_info else None,
         "company_type": job.company_info.company_type if job.company_info else None,
+        "required_skills": intelligence.get("required_skills") or [],
+        "tech_stack": intelligence.get("tech_stack") or [],
     }
 
 
@@ -106,11 +114,11 @@ def jobs_list(
     rated_only = False
     status_enum: Optional[JobStatus] = None
     if status:
-        if status == "rated":
+        if status.lower() == "rated":
             rated_only = True
         else:
             try:
-                status_enum = JobStatus(status)
+                status_enum = JobStatus(status.lower())
             except ValueError:
                 raise HTTPException(status_code=422, detail=f"Invalid status: {status}")
 
@@ -121,6 +129,10 @@ def jobs_list(
         except ValueError:
             raise HTTPException(status_code=422, detail="salary_min must be numeric")
 
+    company_list = [c.strip() for c in company.split(",") if c.strip()] if company else None
+    location_list = [l.strip() for l in location.split(",") if l.strip()] if location else None
+    sector_list = [s.strip() for s in sector.split(",") if s.strip()] if sector else None
+
     fresh_only_bool = fresh_only == "1"
     hide_rated_bool = hide_rated == "1"
     show_inactive_bool = show_inactive == "1"
@@ -130,12 +142,12 @@ def jobs_list(
     offset = (page - 1) * PAGE_SIZE
     jobs = repo.list_jobs(
         status=status_enum,
-        company=company or None,
-        location=location or None,
+        company=company_list,
+        location=location_list,
         salary_min_filter=salary_min_f,
         fresh_only=fresh_only_bool,
         sort=sort_val,
-        sector=sector or None,
+        sector=sector_list,
         company_type=company_type or None,
         source=source or None,
         rated_only=rated_only,
@@ -148,11 +160,11 @@ def jobs_list(
     )
     total = repo.count_jobs_filtered(
         status=status_enum,
-        company=company or None,
-        location=location or None,
+        company=company_list,
+        location=location_list,
         salary_min_filter=salary_min_f,
         fresh_only=fresh_only_bool,
-        sector=sector or None,
+        sector=sector_list,
         company_type=company_type or None,
         source=source or None,
         rated_only=rated_only,
@@ -325,7 +337,8 @@ def job_detail(job_id: int, db: Session = Depends(get_session)):
             bd_model = FitScoreBreakdown(**breakdown)
         except Exception:
             pass
-    detail = {**_job_to_response_dict(job), "description": job.description}
+    company_summary = job.company_info.what_they_do if job.company_info else None
+    detail = {**_job_to_response_dict(job), "description": job.description, "company_summary": company_summary}
     return JSONResponse(JobDetailResponse(
         **detail,
         intelligence=intel_model,

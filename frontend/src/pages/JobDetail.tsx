@@ -250,6 +250,11 @@ export default function JobDetail() {
                 {job.company_type && <InfoRow label="Company Type" value={job.company_type} />}
               </div>
             </Card>
+            {job.company_summary && (
+              <Card title="About the Company">
+                <p className="text-sm text-on-surface-variant leading-relaxed">{job.company_summary}</p>
+              </Card>
+            )}
             <div className="flex gap-3">
               <Button
                 variant="secondary"

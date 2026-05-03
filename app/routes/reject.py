@@ -26,7 +26,7 @@ router = APIRouter()
 ALLOWED_RULE_TYPES = {"location", "property", "title_keyword"}
 
 
-@router.get("/api/reject-rules", response_model=list[RejectRuleListItem], tags=["reject-rules"])
+@router.get("/reject-rules", response_model=list[RejectRuleListItem], tags=["reject-rules"])
 def api_list_reject_rules(db: Session = Depends(get_session)):
     repo = JobRepository(db)
     rules = repo.list_reject_rules()
@@ -50,7 +50,7 @@ class CreateRuleBody(BaseModel):
     value: str
 
 
-@router.post("/api/reject-rules", response_model=CreateRejectRuleResponse, tags=["reject-rules"])
+@router.post("/reject-rules", response_model=CreateRejectRuleResponse, tags=["reject-rules"])
 def api_create_reject_rule(body: CreateRuleBody, db: Session = Depends(get_session)):
     if body.rule_type not in ALLOWED_RULE_TYPES:
         raise HTTPException(status_code=422, detail=f"Invalid rule_type: {body.rule_type}")
@@ -78,7 +78,7 @@ def api_create_reject_rule(body: CreateRuleBody, db: Session = Depends(get_sessi
     ).model_dump())
 
 
-@router.patch("/api/reject-rules/{rule_id}", response_model=ToggleRuleResponse, tags=["reject-rules"])
+@router.patch("/reject-rules/{rule_id}", response_model=ToggleRuleResponse, tags=["reject-rules"])
 def api_toggle_reject_rule(rule_id: int, db: Session = Depends(get_session)):
     repo = JobRepository(db)
     rule = repo.get_reject_rule(rule_id)
@@ -101,7 +101,7 @@ def api_toggle_reject_rule(rule_id: int, db: Session = Depends(get_session)):
     ).model_dump())
 
 
-@router.delete("/api/reject-rules/{rule_id}", response_model=DeleteRuleResponse, tags=["reject-rules"])
+@router.delete("/reject-rules/{rule_id}", response_model=DeleteRuleResponse, tags=["reject-rules"])
 def api_delete_reject_rule(rule_id: int, db: Session = Depends(get_session)):
     repo = JobRepository(db)
     rule = repo.get_reject_rule(rule_id)
@@ -115,7 +115,7 @@ def api_delete_reject_rule(rule_id: int, db: Session = Depends(get_session)):
     ).model_dump())
 
 
-@router.get("/api/reject-rules/property-values", response_model=PropertyValuesResponse, tags=["reject-rules"])
+@router.get("/reject-rules/property-values", response_model=PropertyValuesResponse, tags=["reject-rules"])
 def api_property_values(property: str, db: Session = Depends(get_session)):
     if property not in reject_service.SUPPORTED_PROPERTIES:
         raise HTTPException(status_code=422, detail=f"Unsupported property: {property}")
@@ -123,13 +123,13 @@ def api_property_values(property: str, db: Session = Depends(get_session)):
     return JSONResponse(PropertyValuesResponse(values=repo.get_distinct_property_values(property)).model_dump())
 
 
-@router.get("/api/reject-rules/locations", response_model=PropertyValuesResponse, tags=["reject-rules"])
+@router.get("/reject-rules/locations", response_model=PropertyValuesResponse, tags=["reject-rules"])
 def api_reject_locations(db: Session = Depends(get_session)):
     repo = JobRepository(db)
     return JSONResponse(PropertyValuesResponse(values=repo.get_all_distinct_locations()).model_dump())
 
 
-@router.post("/api/jobs/{job_id}/unreject", response_model=UnrejectJobResponse, tags=["reject-rules"])
+@router.post("/jobs/{job_id}/unreject", response_model=UnrejectJobResponse, tags=["reject-rules"])
 def api_unreject_job(job_id: int, db: Session = Depends(get_session)):
     job = reject_service.manual_unreject(db, job_id)
     if not job:
@@ -137,7 +137,7 @@ def api_unreject_job(job_id: int, db: Session = Depends(get_session)):
     return JSONResponse(UnrejectJobResponse(job_id=job.id, is_rejected=job.is_rejected).model_dump())
 
 
-@router.get("/api/jobs/{job_id}/reject-history", response_model=list[RejectHistoryEntry], tags=["reject-rules"])
+@router.get("/jobs/{job_id}/reject-history", response_model=list[RejectHistoryEntry], tags=["reject-rules"])
 def api_job_reject_history(job_id: int, db: Session = Depends(get_session)):
     repo = JobRepository(db)
     rows = repo.list_reject_audit_for_job(job_id)

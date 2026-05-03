@@ -92,7 +92,7 @@ def api_keyword_gaps(db: Session = Depends(get_session)):
     profile_skills = (profile.skills or "") if profile else ""
     gaps = compute_keyword_gaps(jobs, profile_skills)
     recommendation = get_gap_recommendations(gaps) if gaps else None
-    gap_items = [KeywordGapItem(keyword=k, count=c) for k, c in gaps]
+    gap_items = [KeywordGapItem(keyword=g["keyword"], count=g["count"]) for g in gaps]
     return JSONResponse(KeywordGapsResponse(
         gaps=gap_items,
         recommendation=recommendation,
