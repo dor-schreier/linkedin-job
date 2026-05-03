@@ -8,7 +8,7 @@ from app.schemas import CVData
 
 logger = logging.getLogger(__name__)
 
-_TEMPLATE_DIR = Path(__file__).parent.parent / "templates" / "cv"
+_TEMPLATE_DIR = Path(__file__).parent / "cv_export" / "templates" / "cv"
 
 
 def render_cv_html(cv: CVData, template_name: str = "default") -> str:

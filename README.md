@@ -10,13 +10,15 @@ A self-hosted job search automation tool that scrapes jobs from LinkedIn, Indeed
 - **Job tracking** — move jobs through statuses: NEW → SAVED → APPLIED → INTERVIEWING → OFFER / REJECTED
 - **Watch rules & notifications** — get alerted when jobs matching a company, keyword, or sector appear
 - **Company enrichment** — AI-generated company summaries (sector, type, what they do)
+- **Keyword gap analysis** — compares job intelligence data against your profile skills to surface missing keywords
+- **Job link cleanup** — background checker that re-validates job URLs and marks inactive postings
 - **CV export** — scrape your LinkedIn profile and generate a downloadable PDF/JSON CV
 - **Profile optimizer** — AI recommendations for strengthening your LinkedIn profile
 
 ## Tech Stack
 
 - **Backend:** FastAPI + SQLAlchemy (SQLite), APScheduler
-- **Frontend:** Jinja2 templates + HTMX
+- **Frontend:** React + Vite (SPA, served as static files in production)
 - **AI:** Groq API (`llama-3.1-8b-instant` / `llama-3.3-70b-versatile`) or Ollama (`qwen2.5:14b`)
 - **Scraping:** JobSpy + Playwright
 
@@ -70,13 +72,28 @@ ollama pull qwen2.5:14b
 
 ## Running
 
+**Production (single process):**
+
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cd frontend && npm run build && cd ..
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000).
+Open [http://localhost:8000](http://localhost:8000). The built React app is served directly by uvicorn.
 
-API docs available at `/docs` (Swagger) and `/redoc`.
+**Development (two processes, hot reload):**
+
+```bash
+# Terminal 1 — backend
+DEBUG=1 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) for the Vite dev server (proxies `/api` to port 8000).
+
+API docs available at [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger) and `/redoc`.
 
 ## Usage
 
@@ -86,6 +103,17 @@ API docs available at `/docs` (Swagger) and `/redoc`.
 4. **Review jobs** — go to `/jobs` to see scored results, filter by status/sector/salary, and track applications
 5. **Set watch rules** — go to `/watch-rules` to get notified about jobs from specific companies or sectors
 6. **Export your CV** — go to `/cv/export`, enter your LinkedIn URL, and download a PDF
+
+## E2E Tests
+
+Playwright e2e tests live in `frontend/e2e/` and cover four main flows: scrape, job review, watch rules, and CV export.
+
+```bash
+cd frontend
+npm run test:e2e
+```
+
+Playwright will start both the backend (`uvicorn`) and the Vite dev server automatically. Reuse running servers by setting `reuseExistingServer: true` (already the default).
 
 ## Scripts
 
@@ -107,12 +135,13 @@ app/
 ├── main.py           # FastAPI app, startup/shutdown hooks
 ├── database.py       # SQLAlchemy engine, schema init, migrations
 ├── models.py         # ORM models
-├── schemas.py        # Pydantic schemas
+├── schemas/          # Pydantic schemas
 ├── scraper.py        # JobSpy wrapper, LinkedIn profile scraping
 ├── repository.py     # Data access layer
-├── routes/           # FastAPI route handlers
-├── services/         # Business logic (LLM, CV, scheduler, watch rules)
-└── templates/        # Jinja2 HTML templates
+├── routes/           # FastAPI route handlers (all JSON API)
+└── services/         # Business logic (LLM, CV, scheduler, watch rules)
+    └── cv_export/    # CV Jinja2 templates (server-rendered for PDF)
+frontend/             # React + Vite SPA
 scripts/              # Standalone CLI utilities
 data/                 # SQLite database (git-ignored)
 ```

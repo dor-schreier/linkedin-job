@@ -1,28 +1,34 @@
-"""Scrape routes — search config form, background task trigger, HTMX status polling."""
-import html as html_lib
+"""Scrape routes — search config, background task trigger, status polling, scheduler."""
 import threading
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, BackgroundTasks, Depends, Form
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.repository import JobRepository
-from app.routes.pages import _ctx
 from app.scraper import run_scrape
+from app.schemas.scheduler import (
+    CleanupResult,
+    CleanupStateResponse,
+    SchedulerPageResponse,
+    SchedulerStatusResponse,
+    ScrapeLastResult,
+    ScrapeLogResponse,
+    ScrapePageResponse,
+    ScrapeStateResponse,
+    SearchConfigResponse,
+    TaskStartedResponse,
+)
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
-# Module-level scrape state — single background task at a time
 _scrape_lock = threading.Lock()
 _scrape_status: dict = {"running": False, "last_result": None, "error": None}
 
 
 def _run_scrape_task(config) -> None:
-    """Background task: runs the scrape and updates _scrape_status."""
     try:
         result = run_scrape(config=config)
         if "error" in result:
@@ -37,19 +43,47 @@ def _run_scrape_task(config) -> None:
         _scrape_lock.release()
 
 
-@router.get("/scrape", response_class=HTMLResponse)
-def scrape_page(request: Request, session: Session = Depends(get_session)):
+@router.get("/scrape", response_model=ScrapePageResponse, tags=["scrape"])
+def scrape_page(session: Session = Depends(get_session)):
     repo = JobRepository(session)
     configs = repo.list_search_configs(active_only=True)
     latest_config = configs[-1] if configs else None
-    return templates.TemplateResponse(
-        request,
-        "scrape.html",
-        _ctx(session, "scrape", {"latest_config": latest_config, "status": _scrape_status}),
-    )
+    cfg_model = None
+    if latest_config:
+        cfg_model = SearchConfigResponse(
+            id=latest_config.id,
+            keywords=latest_config.keywords,
+            location=latest_config.location,
+            experience_level=latest_config.experience_level,
+            work_mode=latest_config.work_mode,
+            role_level=latest_config.role_level,
+            country=latest_config.country,
+            max_age_hours=latest_config.max_age_hours,
+            include_remote=bool(latest_config.include_remote),
+            exclude_keywords=latest_config.exclude_keywords,
+            blocked_companies=latest_config.blocked_companies,
+            results_wanted=latest_config.results_wanted or 50,
+            min_salary=latest_config.min_salary,
+        )
+    lr = _scrape_status.get("last_result")
+    last_result_model = None
+    if lr:
+        last_result_model = ScrapeLastResult(
+            inserted=lr.get("inserted", 0),
+            skipped=lr.get("skipped", 0),
+            total_scraped=lr.get("total_scraped", 0),
+        )
+    return JSONResponse(ScrapePageResponse(
+        latest_config=cfg_model,
+        status=ScrapeStateResponse(
+            running=bool(_scrape_status["running"]),
+            error=_scrape_status.get("error"),
+            last_result=last_result_model,
+        ),
+    ).model_dump(mode="json"))
 
 
-@router.post("/scrape/run", response_class=HTMLResponse)
+@router.post("/scrape/run", response_model=TaskStartedResponse, tags=["scrape"])
 def scrape_run(
     background_tasks: BackgroundTasks,
     keywords: Annotated[str, Form(min_length=1, max_length=200)],
@@ -67,7 +101,6 @@ def scrape_run(
     session: Session = Depends(get_session),
 ):
     def _parse_csv(val: str) -> Optional[str]:
-        """Trim whitespace from each CSV token; return None if empty."""
         tokens = [t.strip() for t in val.split(",") if t.strip()]
         return ", ".join(tokens) if tokens else None
 
@@ -93,24 +126,21 @@ def scrape_run(
         min_salary=_parse_int(min_salary, 0) if min_salary.strip() else None,
         is_active=True,
     )
-    # Detach from session so background task can safely read scalar attributes
     session.expunge(config)
 
     if not _scrape_lock.acquire(blocking=False):
-        return HTMLResponse(
-            '<div id="scrape-result" class="text-yellow-600">A scrape is already running.</div>'
+        return JSONResponse(
+            TaskStartedResponse(started=False, message="A scrape is already running.").model_dump(),
+            status_code=409,
         )
 
     _scrape_status["running"] = True
     _scrape_status["error"] = None
     background_tasks.add_task(_run_scrape_task, config)
-    return HTMLResponse(
-        '<div id="scrape-result" hx-get="/scrape/status" hx-trigger="every 2s" hx-swap="outerHTML"'
-        ' class="text-blue-600">Scrape started...</div>'
-    )
+    return JSONResponse(TaskStartedResponse(started=True, message="Scrape started.").model_dump())
 
 
-@router.post("/scrape/save-config", response_class=HTMLResponse)
+@router.post("/scrape/save-config", response_model=TaskStartedResponse, tags=["scrape"])
 def scrape_save_config(
     keywords: Annotated[str, Form(min_length=1, max_length=200)],
     location: Annotated[str, Form(min_length=1, max_length=200)],
@@ -152,43 +182,30 @@ def scrape_save_config(
         min_salary=_parse_int(min_salary, 0) if min_salary.strip() else None,
         is_active=True,
     )
-    return HTMLResponse(
-        '<div id="scrape-result" class="text-green-600">Config saved.</div>'
-    )
+    return JSONResponse(TaskStartedResponse(started=True, message="Config saved.").model_dump())
 
 
-@router.get("/scrape/status", response_class=HTMLResponse)
+@router.get("/scrape/status", response_model=ScrapeStateResponse, tags=["scrape"])
 def scrape_status():
-    if _scrape_status["running"]:
-        return HTMLResponse(
-            '<div id="scrape-result" hx-get="/scrape/status" hx-trigger="every 2s" hx-swap="outerHTML"'
-            ' class="text-blue-600 animate-pulse">Scraping in progress...</div>'
+    lr = _scrape_status.get("last_result")
+    last_result_model = None
+    if lr:
+        last_result_model = ScrapeLastResult(
+            inserted=lr.get("inserted", 0),
+            skipped=lr.get("skipped", 0),
+            total_scraped=lr.get("total_scraped", 0),
         )
-    if _scrape_status["error"]:
-        error = html_lib.escape(_scrape_status["error"])
-        return HTMLResponse(
-            f'<div id="scrape-result" class="text-red-600">Error: {error}</div>'
-        )
-    if _scrape_status["last_result"]:
-        r = _scrape_status["last_result"]
-        inserted = r.get("inserted", 0)
-        skipped = r.get("skipped", 0)
-        total_scraped = r.get("total_scraped", 0)
-        return HTMLResponse(
-            f'<div id="scrape-result" class="text-green-600">'
-            f"Done! Inserted {inserted}, skipped {skipped} (from {total_scraped} scraped)"
-            f"</div>"
-        )
-    return HTMLResponse(
-        '<div id="scrape-result" class="text-gray-500">No scrape run yet.</div>'
-    )
+    return JSONResponse(ScrapeStateResponse(
+        running=bool(_scrape_status["running"]),
+        error=_scrape_status.get("error"),
+        last_result=last_result_model,
+    ).model_dump(mode="json"))
 
 
 # ── Scheduler endpoints ──────────────────────────────────────────────────────
 
-@router.get("/scheduler", response_class=HTMLResponse)
-def scheduler_page(request: Request, session: Session = Depends(get_session)):
-    from app.repository import JobRepository
+@router.get("/scheduler", response_model=SchedulerPageResponse, tags=["scheduler"])
+def scheduler_page(session: Session = Depends(get_session)):
     from app.services import scheduler as sched_service
     from app.services.cleanup_service import get_cleanup_status
     repo = JobRepository(session)
@@ -196,23 +213,42 @@ def scheduler_page(request: Request, session: Session = Depends(get_session)):
     logs = repo.list_scrape_logs(limit=10)
     next_run = sched_service.get_next_run_time()
     cleanup_status = get_cleanup_status()
-    return templates.TemplateResponse(
-        request,
-        "scheduler.html",
-        _ctx(session, "scheduler", {
-            "scheduler_cfg": cfg,
-            "scheduler_running": sched_service.is_running(),
-            "next_run": next_run,
-            "scrape_logs": logs,
-            "cleanup_last_run_at": cleanup_status.get("last_run_at"),
-            "cleanup_last_result": cleanup_status.get("last_result"),
-        }),
-    )
+    log_models = [
+        ScrapeLogResponse(
+            id=log.id,
+            started_at=log.started_at,
+            finished_at=log.finished_at,
+            jobs_found=log.jobs_found,
+            jobs_new=log.jobs_new,
+            status=log.status,
+            error=log.error,
+        )
+        for log in logs
+    ]
+    cr = cleanup_status.get("last_result")
+    cleanup_result_model = None
+    if cr:
+        cleanup_result_model = CleanupResult(
+            checked=cr.get("checked", 0),
+            marked_inactive=cr.get("marked_inactive", 0),
+            errors=cr.get("errors", 0),
+            duration_ms=cr.get("duration_ms", 0),
+        )
+    return JSONResponse(SchedulerPageResponse(
+        config=SchedulerStatusResponse(
+            is_enabled=cfg.is_enabled,
+            interval_hours=cfg.interval_hours,
+            is_running=sched_service.is_running(),
+            next_run=next_run,
+        ),
+        scrape_logs=log_models,
+        cleanup_last_run_at=cleanup_status.get("last_run_at"),
+        cleanup_last_result=cleanup_result_model,
+    ).model_dump(mode="json"))
 
 
-@router.post("/scheduler/toggle", response_class=HTMLResponse)
-def scheduler_toggle(request: Request, session: Session = Depends(get_session)):
-    from app.repository import JobRepository
+@router.post("/scheduler/toggle", response_model=SchedulerStatusResponse, tags=["scheduler"])
+def scheduler_toggle(session: Session = Depends(get_session)):
     from app.services import scheduler as sched_service
     repo = JobRepository(session)
     cfg = repo.get_scheduler_config()
@@ -225,79 +261,68 @@ def scheduler_toggle(request: Request, session: Session = Depends(get_session)):
         sched_service.start_scheduler(interval_hours=cfg.interval_hours)
     cfg = repo.get_scheduler_config()
     next_run = sched_service.get_next_run_time()
-    return templates.TemplateResponse(
-        request,
-        "partials/scheduler_status.html",
-        {"scheduler_cfg": cfg, "scheduler_running": sched_service.is_running(), "next_run": next_run},
-    )
+    return JSONResponse(SchedulerStatusResponse(
+        is_enabled=cfg.is_enabled,
+        interval_hours=cfg.interval_hours,
+        is_running=sched_service.is_running(),
+        next_run=next_run,
+    ).model_dump(mode="json"))
 
 
-@router.post("/scheduler/run-now", response_class=HTMLResponse)
-def scheduler_run_now(request: Request, session: Session = Depends(get_session)):
+@router.post("/scheduler/run-now", response_model=TaskStartedResponse, tags=["scheduler"])
+def scheduler_run_now():
     from app.services import scheduler as sched_service
     started = sched_service.run_now()
-    if not started:
-        return HTMLResponse(
-            '<p class="text-yellow-400 text-sm">A scrape is already running.</p>'
-        )
-    return HTMLResponse(
-        '<p class="text-green-400 text-sm">Manual scrape started — check logs shortly.</p>'
-    )
+    msg = "A scrape is already running." if not started else "Manual scrape started — check logs shortly."
+    return JSONResponse(TaskStartedResponse(started=started, message=msg).model_dump())
 
 
-@router.post("/cleanup/run", response_class=HTMLResponse)
-def cleanup_run_now(request: Request):
+@router.post("/cleanup/run", response_model=TaskStartedResponse, tags=["scheduler"])
+def cleanup_run_now():
     from app.services.cleanup_service import run_cleanup_now
     started = run_cleanup_now()
-    if not started:
-        return HTMLResponse('<p class="text-yellow-400 text-sm">Cleanup is already running.</p>')
-    return HTMLResponse(
-        '<span id="cleanup-result" hx-get="/cleanup/status" hx-trigger="every 3s" hx-swap="outerHTML"'
-        ' class="text-primary text-sm animate-pulse">Cleanup started…</span>'
-    )
+    msg = "Cleanup is already running." if not started else "Cleanup started."
+    return JSONResponse(TaskStartedResponse(started=started, message=msg).model_dump())
 
 
-@router.get("/cleanup/status", response_class=HTMLResponse)
-def cleanup_status_poll(request: Request):
+@router.get("/cleanup/status", response_model=CleanupStateResponse, tags=["scheduler"])
+def cleanup_status_poll():
     from app.services.cleanup_service import get_cleanup_status
     status = get_cleanup_status()
-    if status["running"]:
-        return HTMLResponse(
-            '<span id="cleanup-result" hx-get="/cleanup/status" hx-trigger="every 3s" hx-swap="outerHTML"'
-            ' class="text-primary text-sm animate-pulse">Cleanup running…</span>'
+    cr = status.get("last_result")
+    cleanup_result_model = None
+    if cr:
+        cleanup_result_model = CleanupResult(
+            checked=cr.get("checked", 0),
+            marked_inactive=cr.get("marked_inactive", 0),
+            errors=cr.get("errors", 0),
+            duration_ms=cr.get("duration_ms", 0),
         )
-    result = status.get("last_result")
-    last_run = status.get("last_run_at")
-    if result:
-        dur_s = result["duration_ms"] // 1000
-        msg = (
-            f'Checked {result["checked"]} · '
-            f'Marked inactive {result["marked_inactive"]} · '
-            f'Errors {result["errors"]} · '
-            f'{dur_s}s'
-        )
-        return HTMLResponse(f'<span id="cleanup-result" class="text-green-400 text-sm">{msg}</span>')
-    return HTMLResponse('<span id="cleanup-result" class="text-outline text-sm">No cleanup run yet.</span>')
+    return JSONResponse(CleanupStateResponse(
+        running=bool(status["running"]),
+        last_run_at=status.get("last_run_at"),
+        last_result=cleanup_result_model,
+    ).model_dump(mode="json"))
 
 
-@router.post("/scheduler/config", response_class=HTMLResponse)
+@router.post("/scheduler/config", response_model=SchedulerStatusResponse, tags=["scheduler"])
 def scheduler_update_config(
-    request: Request,
     interval_hours: int = Form(...),
     session: Session = Depends(get_session),
 ):
-    from app.repository import JobRepository
     from app.services import scheduler as sched_service
+    from fastapi import HTTPException
     if interval_hours < 1 or interval_hours > 168:
-        return HTMLResponse('<p class="text-error text-sm">Interval must be 1–168 hours.</p>')
+        raise HTTPException(status_code=422, detail="Interval must be 1–168 hours.")
     repo = JobRepository(session)
     repo.update_scheduler_config(interval_hours=interval_hours)
     if sched_service.is_running():
         sched_service.reschedule(interval_hours)
     cfg = repo.get_scheduler_config()
     next_run = sched_service.get_next_run_time()
-    return templates.TemplateResponse(
-        request,
-        "partials/scheduler_status.html",
-        {"scheduler_cfg": cfg, "scheduler_running": sched_service.is_running(), "next_run": next_run},
-    )
+    return JSONResponse(SchedulerStatusResponse(
+        is_enabled=cfg.is_enabled,
+        interval_hours=cfg.interval_hours,
+        is_running=sched_service.is_running(),
+        next_run=next_run,
+    ).model_dump(mode="json"))
