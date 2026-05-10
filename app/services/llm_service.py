@@ -13,6 +13,12 @@ import os
 import time
 from typing import Any, Optional
 
+try:
+    from json_repair import loads as _json_repair_loads
+    _HAS_JSON_REPAIR = True
+except ImportError:
+    _HAS_JSON_REPAIR = False
+
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -205,9 +211,17 @@ def _strip_code_fence(content: str) -> str:
     return s.strip()
 
 
+def _load_llm_json(content: str) -> Any:
+    """Parse LLM JSON output, tolerating common malformations (invalid escapes, trailing commas, etc.)."""
+    stripped = _strip_code_fence(content)
+    if _HAS_JSON_REPAIR:
+        return _json_repair_loads(stripped)
+    return json.loads(stripped)
+
+
 def _parse_json_response(content: str) -> dict[str, Any]:
     try:
-        data = json.loads(_strip_code_fence(content))
+        data = _load_llm_json(content)
         return {
             "fit_score": int(data["fit_score"]) if data.get("fit_score") is not None else None,
             "fit_summary": str(data.get("fit_summary") or "Scoring unavailable"),
@@ -220,7 +234,7 @@ def _parse_json_response(content: str) -> dict[str, Any]:
 
 def _parse_recommendations_response(content: str) -> list[str]:
     try:
-        data = json.loads(_strip_code_fence(content))
+        data = _load_llm_json(content)
         recs = data.get("recommendations") or []
         return [str(r) for r in recs if r]
     except (json.JSONDecodeError, ValueError, TypeError) as e:
@@ -230,7 +244,7 @@ def _parse_recommendations_response(content: str) -> list[str]:
 
 def _parse_linkedin_analysis_response(content: str) -> dict[str, Any]:
     try:
-        data = json.loads(_strip_code_fence(content))
+        data = _load_llm_json(content)
         sections = data.get("sections")
         if not isinstance(sections, list):
             raise ValueError("sections is not a list")
@@ -393,7 +407,7 @@ def get_enhanced_fit_score(job, profile, jd_intelligence: dict | None = None) ->
             max_tokens=1500,
         )
         content = response.choices[0].message.content or ""
-        data = json.loads(_strip_code_fence(content))
+        data = _load_llm_json(content)
         validated = FitScoreBreakdown.model_validate(data)
         return validated.model_dump()
     except Exception as e:
@@ -490,7 +504,7 @@ def extract_job_intelligence(job) -> dict[str, Any] | None:
             max_tokens=1024,
         )
         content = response.choices[0].message.content or ""
-        data = json.loads(_strip_code_fence(content))
+        data = _load_llm_json(content)
         validated = JobIntelligence.model_validate(data)
         return validated.model_dump()
     except Exception as e:
@@ -531,7 +545,7 @@ def enrich_company(
             max_tokens=256,
         )
         content = response.choices[0].message.content or ""
-        data = json.loads(_strip_code_fence(content))
+        data = _load_llm_json(content)
         validated = CompanyEnrichment.model_validate(data)
         return validated.model_dump()
     except Exception as e:
@@ -562,7 +576,7 @@ def extract_job_summary(job) -> dict[str, Any] | None:
             max_tokens=512,
         )
         content = response.choices[0].message.content or ""
-        data = json.loads(_strip_code_fence(content))
+        data = _load_llm_json(content)
         validated = JobSummary.model_validate(data)
         return validated.model_dump()
     except Exception as e:

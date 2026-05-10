@@ -29,10 +29,10 @@ _scrape_lock = threading.Lock()
 _scrape_status: dict = {"running": False, "last_result": None, "error": None}
 
 
-def _run_scrape_task(config) -> None:
+def _run_scrape_task(config, sites=None) -> None:
     with _scrape_lock:
         try:
-            result = run_scrape(config=config)
+            result = run_scrape(config=config, sites=sites)
             if "error" in result:
                 _scrape_status["error"] = result["error"]
                 _scrape_status["last_result"] = None
@@ -86,6 +86,7 @@ def scrape_page(session: Session = Depends(get_session)):
 
 class ScrapeRunBody(BaseModel):
     config_id: Optional[int] = None
+    sites: Optional[list[str]] = None
 
 
 @router.post("/scrape/run", response_model=TaskStartedResponse, tags=["scrape"])
@@ -119,7 +120,7 @@ def scrape_run(
 
     _scrape_status["running"] = True
     _scrape_status["error"] = None
-    background_tasks.add_task(_run_scrape_task, config)
+    background_tasks.add_task(_run_scrape_task, config, body.sites)
     return JSONResponse(TaskStartedResponse(started=True, message="Scrape started.").model_dump())
 
 

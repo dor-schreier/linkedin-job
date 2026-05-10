@@ -397,7 +397,7 @@ def scrape_linkedin_profile(profile_url: str) -> "LinkedInProfile":  # noqa: F82
     return profile
 
 
-def run_scrape(config, skip_intelligence: bool = False) -> dict:
+def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str]] = None) -> dict:
     """Run a full scrape cycle: fetch -> filter -> normalize -> dedup -> persist.
 
     config: SearchConfig ORM object (may be detached from a session — scalar
@@ -418,40 +418,49 @@ def run_scrape(config, skip_intelligence: bool = False) -> dict:
         # Pass is_remote=True to JobSpy when remote is included; False = no filter
         is_remote_param = True if include_remote else False
 
-        all_dfs = []
-        for search_term in search_terms:
-            logger.info(
-                "Scraping jobs: search_term=%r location=%r country=%r hours_old=%r results_wanted=%r",
-                search_term,
-                getattr(config, "location", "") or "",
-                country,
-                max_age_hours,
-                results_wanted,
-            )
-            # Glassdoor only supports a limited set of countries (US, CA, UK, etc.)
-            _GLASSDOOR_COUNTRIES = {"usa", "canada", "uk", "australia", "germany", "france", "india", "singapore", "netherlands"}
-            sites = ["linkedin", "indeed"]
+        # Determine which providers to run
+        _GLASSDOOR_COUNTRIES = {"usa", "canada", "uk", "australia", "germany", "france", "india", "singapore", "netherlands"}
+        _JOBSPY_PROVIDERS = {"linkedin", "indeed", "glassdoor"}
+        if sites is not None:
+            jobspy_sites = [s for s in sites if s in _JOBSPY_PROVIDERS]
+            run_comeet = "comeet" in sites
+        else:
+            jobspy_sites = ["linkedin", "indeed"]
             if country.lower() in _GLASSDOOR_COUNTRIES:
-                sites.append("glassdoor")
-            df_part = scrape_jobs(
-                site_name=sites,
-                search_term=search_term,
-                location=getattr(config, "location", "") or "",
-                country_indeed=country,
-                is_remote=is_remote_param,
-                hours_old=max_age_hours,
-                job_type=JOB_TYPE,
-                results_wanted=results_wanted,
-                verbose=0,
-                linkedin_fetch_description=True,
-            )
-            all_dfs.append(df_part)
+                jobspy_sites.append("glassdoor")
+            run_comeet = bool(getattr(config, "include_comeet", False))
 
-        # Comeet integration — only when include_comeet is enabled
+        all_dfs = []
+        if jobspy_sites:
+            for search_term in search_terms:
+                logger.info(
+                    "Scraping jobs: search_term=%r location=%r country=%r hours_old=%r results_wanted=%r sites=%r",
+                    search_term,
+                    getattr(config, "location", "") or "",
+                    country,
+                    max_age_hours,
+                    results_wanted,
+                    jobspy_sites,
+                )
+                df_part = scrape_jobs(
+                    site_name=jobspy_sites,
+                    search_term=search_term,
+                    location=getattr(config, "location", "") or "",
+                    country_indeed=country,
+                    is_remote=is_remote_param,
+                    hours_old=max_age_hours,
+                    job_type=JOB_TYPE,
+                    results_wanted=results_wanted,
+                    verbose=0,
+                    linkedin_fetch_description=True,
+                )
+                all_dfs.append(df_part)
+
+        # Comeet integration
         comeet_discovered = 0
         comeet_parsed = 0
         comeet_failed = 0
-        if getattr(config, "include_comeet", False):
+        if run_comeet:
             try:
                 from app.scrapers.comeet import comeet_search
                 comeet_df, comeet_stats = comeet_search(search_terms)
@@ -461,7 +470,7 @@ def run_scrape(config, skip_intelligence: bool = False) -> dict:
                 if not comeet_df.empty:
                     all_dfs.append(comeet_df)
             except Exception as _comeet_exc:
-                logger.warning("Comeet scrape failed, continuing without Comeet results: %s", _comeet_exc)
+                logger.warning("Comeet scrape failed, continuing without Comeet results: %s", _comeet_exc, exc_info=True)
 
         if all_dfs:
             df = pd.concat(all_dfs, ignore_index=True)

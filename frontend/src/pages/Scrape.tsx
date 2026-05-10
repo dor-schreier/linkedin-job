@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Layout from '../components/Layout'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -5,16 +6,37 @@ import Badge from '../components/ui/Badge'
 import { useScrapeState, useScrapeRun, useScrapeConfig } from '../api/queries'
 import { useNavigate } from 'react-router-dom'
 
+const ALL_SOURCES = ['linkedin', 'indeed', 'comeet'] as const
+type Source = typeof ALL_SOURCES[number]
+
+const SOURCE_LABELS: Record<Source, string> = {
+  linkedin: 'LinkedIn',
+  indeed: 'Indeed',
+  comeet: 'Comeet',
+}
+
 export default function Scrape() {
   const { data: status } = useScrapeState()
   const { data: page } = useScrapeConfig()
   const run = useScrapeRun()
   const navigate = useNavigate()
+  const [selected, setSelected] = useState<Set<Source>>(new Set(ALL_SOURCES))
 
   const st = status as any
   const cfg = (page as any)?.latest_config
-
   const isRunning = st?.running ?? false
+
+  function toggleSource(src: Source) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(src) ? next.delete(src) : next.add(src)
+      return next
+    })
+  }
+
+  function handleRun() {
+    run.mutate({ configId: cfg?.id, sites: [...selected] })
+  }
 
   return (
     <Layout title="Find New Jobs" active="scrape">
@@ -60,15 +82,32 @@ export default function Scrape() {
 
         {/* Run */}
         <Card title="Manual Scrape">
-          <p className="text-sm text-on-surface-variant mb-4">
-            Start an immediate scrape using the active search config above.
+          <p className="text-sm text-on-surface-variant mb-3">
+            Select sources and start an immediate scrape.
           </p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {ALL_SOURCES.map(src => (
+              <button
+                key={src}
+                onClick={() => toggleSource(src)}
+                disabled={isRunning}
+                className={[
+                  'px-3 py-1.5 rounded-full text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                  selected.has(src)
+                    ? 'bg-primary text-on-primary border-primary'
+                    : 'bg-transparent text-on-surface-variant border-outline-variant hover:border-outline',
+                ].join(' ')}
+              >
+                {SOURCE_LABELS[src]}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-4">
             <Button
               icon={isRunning ? undefined : 'search'}
               loading={isRunning || run.isPending}
-              onClick={() => run.mutate(cfg?.id)}
-              disabled={isRunning}
+              onClick={handleRun}
+              disabled={isRunning || selected.size === 0}
             >
               {isRunning ? 'Scraping…' : 'Start Scrape'}
             </Button>

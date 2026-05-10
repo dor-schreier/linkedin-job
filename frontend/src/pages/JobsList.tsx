@@ -293,7 +293,7 @@ const SORT_OPTIONS = [
   { value: 'fit_asc', label: 'Worst Fit First' },
 ]
 const COMPANY_TYPE_OPTIONS = ['', 'corporate', 'startup', 'scaleup', 'agency', 'non-profit', 'government', 'unknown']
-const SOURCE_OPTIONS = ['', 'linkedin', 'indeed', 'glassdoor', 'zip_recruiter']
+const SOURCE_OPTIONS = ['', 'linkedin', 'indeed', 'glassdoor', 'zip_recruiter', 'comeet']
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 

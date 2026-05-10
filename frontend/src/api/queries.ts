@@ -220,8 +220,14 @@ export function useScrapeState() {
 export function useScrapeRun() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (configId?: number) =>
-      apiFetch('/api/scrape/run', { method: 'POST', body: JSON.stringify(configId ? { config_id: configId } : {}) }),
+    mutationFn: ({ configId, sites }: { configId?: number; sites?: string[] } = {}) =>
+      apiFetch('/api/scrape/run', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...(configId ? { config_id: configId } : {}),
+          ...(sites ? { sites } : {}),
+        }),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['scrape'] }),
   })
 }

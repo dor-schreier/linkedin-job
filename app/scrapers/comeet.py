@@ -11,6 +11,9 @@ import requests
 from bs4 import BeautifulSoup
 
 from app.scrapers.search_backends import (
+    DdgsBackend,
+    GoogleCseBackend,
+    GoogleScrapeBackend,
     PlaywrightGoogleBackend,
     SearchBackendBlocked,
     get_search_backend,
@@ -45,20 +48,34 @@ def discover_comeet_urls(
     max_results: int = 30,
     request_delay_ms: int = _DEFAULT_DELAY_MS,
 ) -> list[str]:
-    """Search Google for Comeet job URLs matching a keyword.
+    """Search for Comeet job URLs matching a keyword.
 
-    Falls back to PlaywrightGoogleBackend if the primary backend is blocked.
-    Returns deduped list of comeet.com/jobs/... URLs.
+    Tries backends in order: configured primary → DdgsBackend → GoogleScrapeBackend
+    → PlaywrightGoogleBackend. Returns a deduped list of comeet.com/jobs/... URLs.
     """
     query = f"site:comeet.com/jobs/ {keyword}"
-    backend = get_search_backend()
+    primary = get_search_backend()
 
-    try:
-        raw_urls = backend.search(query, max_results)
-    except SearchBackendBlocked as exc:
-        logger.warning("Primary Google backend blocked (%s), falling back to Playwright", exc)
-        backend = PlaywrightGoogleBackend()
-        raw_urls = backend.search(query, max_results)
+    # Build fallback chain: primary first, then the fixed fallbacks (skipping duplicates)
+    fixed_fallbacks = [DdgsBackend(), GoogleScrapeBackend(), PlaywrightGoogleBackend()]
+    chain = [primary] + [b for b in fixed_fallbacks if type(b) is not type(primary)]
+
+    raw_urls: list[str] = []
+    for backend in chain:
+        name = type(backend).__name__
+        try:
+            results = backend.search(query, max_results)
+            if not results:
+                logger.warning("comeet discovery: %s returned 0 results for %r — trying next", name, query)
+                raise SearchBackendBlocked("0 results (possible silent block)")
+            raw_urls = results
+            logger.debug("comeet discovery: %s succeeded for %r", name, query)
+            break
+        except SearchBackendBlocked as exc:
+            logger.warning("comeet discovery: %s blocked (%s) — trying next backend", name, exc)
+    else:
+        logger.warning("comeet discovery: all backends exhausted for %r — skipping keyword", query)
+        return []
 
     seen: set[str] = set()
     urls: list[str] = []

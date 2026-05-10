@@ -179,8 +179,8 @@ class JobIntelligence(BaseModel):
 
     required_skills: list[str]
     preferred_skills: list[str]
-    seniority_level: str
-    remote_policy: str  # onsite / hybrid / remote
+    seniority_level: Optional[str] = None
+    remote_policy: Optional[str] = None  # onsite / hybrid / remote
     tech_stack: list[str]
     team_size_signals: Optional[str] = None
     salary_signals: Optional[str] = None

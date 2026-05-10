@@ -54,3 +54,14 @@ OLLAMA_MODEL=qwen2.5:14b
 ```
 
 **Schema migrations** are in `app/database.py` — `ALTER TABLE` wrapped in try/except for idempotency. Add new columns there, not as separate migration files.
+
+**Comeet search backend config** (`.env`):
+```
+GOOGLE_SEARCH_BACKEND=cse    # default; options: cse | ddgs | google | playwright
+GOOGLE_CSE_KEY=              # Google Cloud API key with Custom Search API enabled
+GOOGLE_CSE_CX=               # Programmable Search Engine ID
+```
+- Create a Programmable Search Engine at https://programmablesearchengine.google.com — restrict it to `comeet.com/*` for cleaner results.
+- Enable the "Custom Search API" in the associated GCP project and generate an API key restricted to that API.
+- Free quota: 100 queries/day; paid tier $5/1k beyond. Set a GCP budget alert.
+- Fallback chain (automatic): CSE → DdgsBackend → GoogleScrapeBackend → PlaywrightGoogleBackend. If CSE is unconfigured, falls through to `ddgs` cleanly.
