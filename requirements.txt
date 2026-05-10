@@ -11,3 +11,6 @@ python-multipart>=0.0.9
 weasyprint>=61
 playwright>=1.40
 python-jobspy>=1.1.79
+googlesearch-python>=1.2.3
+beautifulsoup4>=4.12
+requests>=2.30

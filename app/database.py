@@ -152,6 +152,11 @@ def init_db():
             conn.commit()
         except Exception:
             pass
+        try:
+            conn.execute(text("ALTER TABLE search_configs ADD COLUMN include_comeet BOOLEAN NOT NULL DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            pass
         # CV feature migrations
         try:
             conn.execute(text(

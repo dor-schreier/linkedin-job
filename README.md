@@ -146,6 +146,20 @@ scripts/              # Standalone CLI utilities
 data/                 # SQLite database (git-ignored)
 ```
 
+## Scraping
+
+### JobSpy sources (LinkedIn, Indeed, Glassdoor)
+
+The default scrape path uses [JobSpy](https://github.com/Bunsly/JobSpy) to pull from LinkedIn, Indeed, and optionally Glassdoor (Glassdoor is only enabled for countries it supports: US, CA, UK, etc.).
+
+### Comeet
+
+When **Include Comeet** is toggled on in the search config, the scraper issues a `site:comeet.com/jobs/ {keyword}` Google search for each keyword, fetches the resulting job pages, and parses title/company/location/description from the server-rendered HTML. Results flow through the same dedup, filter, company enrichment, fit scoring, and reject/watch-rule pipeline as JobSpy rows.
+
+**Rate-limit caveat:** Google blocks automated searches after a short burst. The scraper automatically falls back to a headless Playwright browser when the primary backend is blocked. For sustained high-volume use, set `GOOGLE_SEARCH_BACKEND=serpapi` or `cse` and supply the corresponding API keys (those backends are not yet implemented — a `NotImplementedError` is logged and the scrape continues without Comeet rows).
+
+Relevant env vars: `GOOGLE_SEARCH_BACKEND`, `COMEET_REQUEST_DELAY_MS`.
+
 ## Notes
 
 - The `LINKEDIN_SESSION_COOKIE` is sensitive — never commit it. Keep it in your local `.env` only.

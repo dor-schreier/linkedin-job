@@ -185,6 +185,7 @@ class SearchConfig(Base):
     blocked_companies = Column(Text, nullable=True)  # CSV string
     results_wanted = Column(Integer, default=50, nullable=False, server_default="50")
     min_salary = Column(Integer, nullable=True)
+    include_comeet = Column(Boolean, default=False, nullable=False, server_default="0")
 
 
 class WatchRule(Base):

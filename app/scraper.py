@@ -447,6 +447,22 @@ def run_scrape(config, skip_intelligence: bool = False) -> dict:
             )
             all_dfs.append(df_part)
 
+        # Comeet integration — only when include_comeet is enabled
+        comeet_discovered = 0
+        comeet_parsed = 0
+        comeet_failed = 0
+        if getattr(config, "include_comeet", False):
+            try:
+                from app.scrapers.comeet import comeet_search
+                comeet_df, comeet_stats = comeet_search(search_terms)
+                comeet_discovered = comeet_stats.get("discovered", 0)
+                comeet_parsed = comeet_stats.get("parsed", 0)
+                comeet_failed = comeet_stats.get("failed", 0)
+                if not comeet_df.empty:
+                    all_dfs.append(comeet_df)
+            except Exception as _comeet_exc:
+                logger.warning("Comeet scrape failed, continuing without Comeet results: %s", _comeet_exc)
+
         if all_dfs:
             df = pd.concat(all_dfs, ignore_index=True)
             # DataFrame-level dedup by job_url before DB hash check
@@ -602,7 +618,8 @@ def run_scrape(config, skip_intelligence: bool = False) -> dict:
         logger.info(
             "Scrape complete: total=%d inserted=%d skipped=%d remote_filtered=%d "
             "blocked_companies=%d exclude_keywords=%d min_salary=%d "
-            "notifications=%d scored=%d score_skipped=%d score_failed=%d",
+            "notifications=%d scored=%d score_skipped=%d score_failed=%d "
+            "comeet_discovered=%d comeet_parsed=%d comeet_failed=%d",
             total_scraped,
             inserted,
             skipped,
@@ -614,6 +631,9 @@ def run_scrape(config, skip_intelligence: bool = False) -> dict:
             scored,
             score_skipped,
             score_failed,
+            comeet_discovered,
+            comeet_parsed,
+            comeet_failed,
         )
         return {
             "total_scraped": total_scraped,
@@ -627,6 +647,9 @@ def run_scrape(config, skip_intelligence: bool = False) -> dict:
             "scored": scored,
             "score_skipped": score_skipped,
             "score_failed": score_failed,
+            "comeet_discovered": comeet_discovered,
+            "comeet_parsed": comeet_parsed,
+            "comeet_failed": comeet_failed,
         }
 
     except Exception as e:

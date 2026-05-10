@@ -15,6 +15,7 @@ const initial = {
   country: '',
   max_age_hours: 72 as number | string,
   include_remote: false as boolean,
+  include_comeet: false as boolean,
   exclude_keywords: '',
   blocked_companies: '',
   results_wanted: 50 as number | string,
@@ -38,6 +39,7 @@ export default function SearchConfig() {
         country: d.country ?? '',
         max_age_hours: d.max_age_hours ?? 72,
         include_remote: d.include_remote ?? false,
+        include_comeet: d.include_comeet ?? false,
         exclude_keywords: d.exclude_keywords ?? '',
         blocked_companies: d.blocked_companies ?? '',
         results_wanted: d.results_wanted ?? 50,
@@ -58,6 +60,7 @@ export default function SearchConfig() {
       country: v.country || null,
       max_age_hours: v.max_age_hours ? Number(v.max_age_hours) : null,
       include_remote: v.include_remote,
+      include_comeet: v.include_comeet,
       exclude_keywords: v.exclude_keywords || null,
       blocked_companies: v.blocked_companies || null,
       results_wanted: v.results_wanted ? Number(v.results_wanted) : 50,
@@ -93,6 +96,16 @@ export default function SearchConfig() {
                     className="w-4 h-4 rounded"
                   />
                   <label htmlFor="include_remote" className="text-sm text-on-surface">Include remote jobs</label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="include_comeet"
+                    checked={form.values.include_comeet as boolean}
+                    onChange={(e) => form.set('include_comeet', e.target.checked as any)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <label htmlFor="include_comeet" className="text-sm text-on-surface">Include Comeet jobs</label>
                 </div>
               </div>
             </Card>
