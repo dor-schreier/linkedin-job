@@ -63,39 +63,45 @@ export default function ProfileOptimizer() {
           </Card>
         )}
 
+        {analysis && (analysis.overall_score != null || analysis.top_priority) && (
+          <Card title="Summary">
+            {analysis.overall_score != null && (
+              <div className="flex items-center gap-2 mb-3">
+                <Badge color={analysis.overall_score >= 80 ? 'green' : analysis.overall_score >= 50 ? 'yellow' : 'red'}>
+                  Overall: {analysis.overall_score}/100
+                </Badge>
+              </div>
+            )}
+            {analysis.top_priority && (
+              <p className="text-sm text-on-surface">
+                <span className="font-semibold text-primary">Top priority: </span>
+                {analysis.top_priority}
+              </p>
+            )}
+          </Card>
+        )}
+
         {analysis?.sections && (
           <div className="space-y-4">
             {(analysis.sections as any[]).map((section: any, i: number) => (
-              <Card key={i} title={section.title}>
+              <Card key={i} title={section.name ?? section.title}>
                 <div className="flex items-center gap-2 mb-3">
                   <Badge
                     color={
-                      section.score >= 8 ? 'green' :
-                      section.score >= 5 ? 'yellow' : 'red'
+                      section.score >= 80 ? 'green' :
+                      section.score >= 50 ? 'yellow' : 'red'
                     }
                   >
-                    Score: {section.score}/10
+                    Score: {section.score}/100
                   </Badge>
                 </div>
-                {section.observations && (
-                  <div className="mb-3">
-                    <p className="text-xs font-bold uppercase tracking-wider text-outline mb-2">Observations</p>
-                    <ul className="space-y-1">
-                      {(section.observations as string[]).map((obs, j) => (
-                        <li key={j} className="text-sm text-on-surface-variant flex gap-2">
-                          <span className="text-primary shrink-0">•</span> {obs}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {section.suggestions && (
+                {section.tasks?.length > 0 && (
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-outline mb-2">Suggestions</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-outline mb-2">Action Items</p>
                     <ul className="space-y-1">
-                      {(section.suggestions as string[]).map((sug, j) => (
+                      {(section.tasks as string[]).map((task, j) => (
                         <li key={j} className="text-sm text-on-surface flex gap-2">
-                          <span className="text-success shrink-0">→</span> {sug}
+                          <span className="text-success shrink-0">→</span> {task}
                         </li>
                       ))}
                     </ul>

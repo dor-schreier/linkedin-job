@@ -85,7 +85,7 @@ Open [http://localhost:8000](http://localhost:8000). The built React app is serv
 
 ```bash
 # Terminal 1 — backend
-DEBUG=1 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+DEBUG=1 uvicorn app.main:app --reload --reload-dir app --host 0.0.0.0 --port 8000
 
 # Terminal 2 — frontend
 cd frontend && npm run dev

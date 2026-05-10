@@ -42,6 +42,7 @@ class JobResponse(BaseModel):
     company_type: Optional[str] = None
     required_skills: list[str] = []
     tech_stack: list[str] = []
+    days_since_posted: Optional[int] = None
 
     @field_validator("status", mode="before")
     @classmethod

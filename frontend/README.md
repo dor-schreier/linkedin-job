@@ -6,7 +6,7 @@ Vite + React + TypeScript frontend for Job Finder.
 
 ```bash
 # 1. Start backend
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --reload-dir app --host 0.0.0.0 --port 8000
 
 # 2. Generate typed API client from live OpenAPI schema (backend must be running)
 npm run gen:api

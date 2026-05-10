@@ -149,8 +149,7 @@ def api_profile_optimizer_analyze(db: Session = Depends(get_session)):
 @router.get("/api/search-config", response_model=SearchConfigPageResponse, tags=["search-config"])
 def api_search_config(db: Session = Depends(get_session)):
     repo = JobRepository(db)
-    configs = repo.list_search_configs(active_only=True)
-    cfg = configs[-1] if configs else None
+    cfg = repo.get_active_search_config()
     if not cfg:
         return JSONResponse(SearchConfigPageResponse().model_dump(mode="json"))
     return JSONResponse(SearchConfigPageResponse(
@@ -168,9 +167,3 @@ def api_search_config(db: Session = Depends(get_session)):
         results_wanted=cfg.results_wanted or 50,
         min_salary=cfg.min_salary,
     ).model_dump(mode="json"))
-
-
-def _split_bullets(text: Optional[str]) -> list:
-    if not text:
-        return []
-    return [line.lstrip("- ").strip() for line in text.splitlines() if line.strip()]

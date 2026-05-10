@@ -87,6 +87,7 @@ def _job_to_response_dict(job) -> dict:
         "company_type": job.company_info.company_type if job.company_info else None,
         "required_skills": intelligence.get("required_skills") or [],
         "tech_stack": intelligence.get("tech_stack") or [],
+        "days_since_posted": _days_since_posted(job),
     }
 
 
@@ -109,6 +110,9 @@ def jobs_list(
     page: int = 1,
     db: Session = Depends(get_session),
 ):
+    if page < 1:
+        raise HTTPException(status_code=422, detail="page must be >= 1")
+
     repo = JobRepository(db)
 
     rated_only = False
@@ -186,14 +190,10 @@ def jobs_list(
         except ValueError:
             pass
 
-    total_jobs = db.query(Job).filter(Job.is_active == True, Job.status != JobStatus.REJECTED, Job.is_rejected == False).count()  # noqa: E712
-    high_match_count = db.query(Job).filter(Job.is_active == True, Job.status != JobStatus.REJECTED, Job.is_rejected == False, Job.fit_score >= 90).count()  # noqa: E712
-    unscored_count = db.query(Job).filter(Job.is_active == True, Job.status != JobStatus.REJECTED, Job.is_rejected == False, Job.fit_score.is_(None)).count()  # noqa: E712
-
-    if last_visit_ts:
-        new_since_last_visit = db.query(Job).filter(Job.is_active == True, Job.status != JobStatus.REJECTED, Job.is_rejected == False, Job.scraped_at > last_visit_ts).count()  # noqa: E712
-    else:
-        new_since_last_visit = total_jobs
+    total_jobs = repo.count_active_jobs()
+    high_match_count = repo.count_high_match_jobs(min_score=90)
+    unscored_count = repo.count_unscored_jobs()
+    new_since_last_visit = repo.count_new_since(last_visit_ts) if last_visit_ts else total_jobs
 
     from app.routes.scrape import _scrape_status
     scraper_running = _scrape_status.get("running", False)
@@ -400,7 +400,7 @@ def patch_job_status(job_id: int, body: JobStatusPatchRequest, db: Session = Dep
     if job_id <= 0:
         raise HTTPException(status_code=422, detail="Invalid job_id")
     try:
-        status_enum = JobStatus(body.status)
+        status_enum = JobStatus(body.status.lower())
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid status value: {body.status}")
     repo = JobRepository(db)
@@ -411,7 +411,7 @@ def patch_job_status(job_id: int, body: JobStatusPatchRequest, db: Session = Dep
 
 
 @router.post("/jobs/{job_id}/status", response_model=JobStatusUpdateResponse, tags=["jobs"])
-async def update_job_status(
+def update_job_status(
     job_id: int,
     request: Request,
     status: str = Form(...),
@@ -420,7 +420,7 @@ async def update_job_status(
     if job_id <= 0:
         raise HTTPException(status_code=422, detail="Invalid job_id")
     try:
-        status_enum = JobStatus(status)
+        status_enum = JobStatus(status.lower())
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid status value: {status}")
     repo = JobRepository(db)

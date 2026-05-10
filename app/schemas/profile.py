@@ -19,10 +19,10 @@ class ProfileResponse(BaseModel):
 
 
 class ProfileSaveRequest(BaseModel):
-    linkedin_url: str = ""
-    skills: str = ""
-    current_title: str = ""
-    target_title: str = ""
+    linkedin_url: Optional[str] = None
+    skills: Optional[str] = None
+    current_title: Optional[str] = None
+    target_title: Optional[str] = None
     years_experience: Optional[int] = None
 
 

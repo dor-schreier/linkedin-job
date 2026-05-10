@@ -1,7 +1,7 @@
 """Watch rules CRUD + notifications endpoints (JSON API)."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_session
@@ -67,7 +67,6 @@ def toggle_watch_rule(rule_id: int, db: Session = Depends(get_session)):
 def delete_watch_rule(rule_id: int, db: Session = Depends(get_session)):
     repo = JobRepository(db)
     repo.delete_watch_rule(rule_id)
-    from fastapi.responses import Response
     return Response(status_code=204)
 
 

@@ -31,6 +31,7 @@ interface Job {
   company_type?: string
   required_skills: string[]
   tech_stack: string[]
+  days_since_posted?: number
 }
 
 interface Stats {
@@ -178,6 +179,14 @@ function daysAgo(dateStr?: string): string {
   if (diff < 7) return `${diff}d ago`
   if (diff < 30) return `${Math.floor(diff / 7)}w ago`
   return `${Math.floor(diff / 30)}mo ago`
+}
+
+function formatDaysAgo(days: number): string {
+  if (days === 0) return 'today'
+  if (days === 1) return '1d ago'
+  if (days < 7) return `${days}d ago`
+  if (days < 30) return `${Math.floor(days / 7)}w ago`
+  return `${Math.floor(days / 30)}mo ago`
 }
 
 function StatPill({ icon, value, label, highlight }: { icon: string; value: string | number; label: string; highlight?: boolean }) {
@@ -613,7 +622,7 @@ export default function JobsList() {
 
                   {/* Date */}
                   <div className="text-[11px] text-outline whitespace-nowrap text-right pt-0.5" title={job.date_posted ?? ''}>
-                    {daysAgo(job.date_posted)}
+                    {job.days_since_posted != null ? formatDaysAgo(job.days_since_posted) : daysAgo(job.date_posted)}
                   </div>
                 </div>
               ))}

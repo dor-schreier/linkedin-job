@@ -1,9 +1,10 @@
 """Scrape routes — search config, background task trigger, status polling, scheduler."""
 import threading
-from typing import Annotated, Optional
+from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_session
@@ -29,25 +30,24 @@ _scrape_status: dict = {"running": False, "last_result": None, "error": None}
 
 
 def _run_scrape_task(config) -> None:
-    try:
-        result = run_scrape(config=config)
-        if "error" in result:
-            _scrape_status["error"] = result["error"]
-            _scrape_status["last_result"] = None
-        else:
-            _scrape_status["last_result"] = result
-    except Exception as e:
-        _scrape_status["error"] = str(e)
-    finally:
-        _scrape_status["running"] = False
-        _scrape_lock.release()
+    with _scrape_lock:
+        try:
+            result = run_scrape(config=config)
+            if "error" in result:
+                _scrape_status["error"] = result["error"]
+                _scrape_status["last_result"] = None
+            else:
+                _scrape_status["last_result"] = result
+        except Exception as e:
+            _scrape_status["error"] = str(e)
+        finally:
+            _scrape_status["running"] = False
 
 
 @router.get("/scrape", response_model=ScrapePageResponse, tags=["scrape"])
 def scrape_page(session: Session = Depends(get_session)):
     repo = JobRepository(session)
-    configs = repo.list_search_configs(active_only=True)
-    latest_config = configs[-1] if configs else None
+    latest_config = repo.get_active_search_config()
     cfg_model = None
     if latest_config:
         cfg_model = SearchConfigResponse(
@@ -83,52 +83,34 @@ def scrape_page(session: Session = Depends(get_session)):
     ).model_dump(mode="json"))
 
 
+class ScrapeRunBody(BaseModel):
+    config_id: Optional[int] = None
+
+
 @router.post("/scrape/run", response_model=TaskStartedResponse, tags=["scrape"])
 def scrape_run(
     background_tasks: BackgroundTasks,
-    keywords: Annotated[str, Form(min_length=1, max_length=200)],
-    location: Annotated[str, Form(min_length=1, max_length=200)],
-    experience_level: str = Form(""),
-    work_mode: str = Form(""),
-    role_level: str = Form(""),
-    country: str = Form("israel"),
-    max_age_hours: str = Form("72"),
-    include_remote: str = Form(""),
-    exclude_keywords: str = Form(""),
-    blocked_companies: str = Form(""),
-    results_wanted: str = Form("50"),
-    min_salary: str = Form(""),
+    body: Optional[ScrapeRunBody] = None,
     session: Session = Depends(get_session),
 ):
-    def _parse_csv(val: str) -> Optional[str]:
-        tokens = [t.strip() for t in val.split(",") if t.strip()]
-        return ", ".join(tokens) if tokens else None
-
-    def _parse_int(val: str, default: int) -> int:
-        try:
-            return int(val) if val.strip() else default
-        except ValueError:
-            return default
-
+    body = body or ScrapeRunBody()
     repo = JobRepository(session)
-    config = repo.add_search_config(
-        keywords=keywords,
-        location=location,
-        experience_level=experience_level or None,
-        work_mode=work_mode or None,
-        role_level=role_level or None,
-        country=country or "israel",
-        max_age_hours=_parse_int(max_age_hours, 72) if max_age_hours.strip() else None,
-        include_remote=bool(include_remote),
-        exclude_keywords=_parse_csv(exclude_keywords),
-        blocked_companies=_parse_csv(blocked_companies),
-        results_wanted=_parse_int(results_wanted, 50),
-        min_salary=_parse_int(min_salary, 0) if min_salary.strip() else None,
-        is_active=True,
-    )
+
+    if body.config_id is not None:
+        configs = repo.list_search_configs(active_only=True)
+        config = next((c for c in configs if c.id == body.config_id), None)
+    else:
+        config = repo.get_active_search_config()
+
+    if config is None:
+        return JSONResponse(
+            TaskStartedResponse(started=False, message="No search config found. Save a config first.").model_dump(),
+            status_code=400,
+        )
+
     session.expunge(config)
 
-    if not _scrape_lock.acquire(blocking=False):
+    if _scrape_status.get("running"):
         return JSONResponse(
             TaskStartedResponse(started=False, message="A scrape is already running.").model_dump(),
             status_code=409,
@@ -140,46 +122,37 @@ def scrape_run(
     return JSONResponse(TaskStartedResponse(started=True, message="Scrape started.").model_dump())
 
 
+class SaveConfigBody(BaseModel):
+    keywords: Optional[str] = None
+    location: Optional[str] = None
+    experience_level: Optional[str] = None
+    work_mode: Optional[str] = None
+    role_level: Optional[str] = None
+    country: Optional[str] = "israel"
+    max_age_hours: Optional[int] = 72
+    include_remote: bool = False
+    exclude_keywords: Optional[str] = None
+    blocked_companies: Optional[str] = None
+    results_wanted: int = 50
+    min_salary: Optional[int] = None
+
+
 @router.post("/scrape/save-config", response_model=TaskStartedResponse, tags=["scrape"])
-def scrape_save_config(
-    keywords: Annotated[str, Form(min_length=1, max_length=200)],
-    location: Annotated[str, Form(min_length=1, max_length=200)],
-    experience_level: str = Form(""),
-    work_mode: str = Form(""),
-    role_level: str = Form(""),
-    country: str = Form("israel"),
-    max_age_hours: str = Form("72"),
-    include_remote: str = Form(""),
-    exclude_keywords: str = Form(""),
-    blocked_companies: str = Form(""),
-    results_wanted: str = Form("50"),
-    min_salary: str = Form(""),
-    session: Session = Depends(get_session),
-):
-    def _parse_csv(val: str) -> Optional[str]:
-        tokens = [t.strip() for t in val.split(",") if t.strip()]
-        return ", ".join(tokens) if tokens else None
-
-    def _parse_int(val: str, default: int) -> int:
-        try:
-            return int(val) if val.strip() else default
-        except ValueError:
-            return default
-
+def scrape_save_config(body: SaveConfigBody, session: Session = Depends(get_session)):
     repo = JobRepository(session)
-    repo.add_search_config(
-        keywords=keywords,
-        location=location,
-        experience_level=experience_level or None,
-        work_mode=work_mode or None,
-        role_level=role_level or None,
-        country=country or "israel",
-        max_age_hours=_parse_int(max_age_hours, 72) if max_age_hours.strip() else None,
-        include_remote=bool(include_remote),
-        exclude_keywords=_parse_csv(exclude_keywords),
-        blocked_companies=_parse_csv(blocked_companies),
-        results_wanted=_parse_int(results_wanted, 50),
-        min_salary=_parse_int(min_salary, 0) if min_salary.strip() else None,
+    repo.upsert_search_config(
+        keywords=body.keywords or "",
+        location=body.location or "",
+        experience_level=body.experience_level or None,
+        work_mode=body.work_mode or None,
+        role_level=body.role_level or None,
+        country=body.country or "israel",
+        max_age_hours=body.max_age_hours,
+        include_remote=body.include_remote,
+        exclude_keywords=body.exclude_keywords,
+        blocked_companies=body.blocked_companies,
+        results_wanted=body.results_wanted,
+        min_salary=body.min_salary,
         is_active=True,
     )
     return JSONResponse(TaskStartedResponse(started=True, message="Config saved.").model_dump())
@@ -311,7 +284,6 @@ def scheduler_update_config(
     session: Session = Depends(get_session),
 ):
     from app.services import scheduler as sched_service
-    from fastapi import HTTPException
     if interval_hours < 1 or interval_hours > 168:
         raise HTTPException(status_code=422, detail="Interval must be 1–168 hours.")
     repo = JobRepository(session)

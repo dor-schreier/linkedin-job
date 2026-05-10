@@ -54,7 +54,7 @@ class JobRepository:
             q = q.filter(Job.user_rating.isnot(None))
         elif status:
             q = q.filter(Job.status == status)
-        else:
+        elif not include_rejected:
             q = q.filter(Job.status != JobStatus.REJECTED)
         if company:
             q = q.filter(Job.company.in_(company))
@@ -121,7 +121,7 @@ class JobRepository:
             q = q.filter(Job.user_rating.isnot(None))
         elif status:
             q = q.filter(Job.status == status)
-        else:
+        elif not include_rejected:
             q = q.filter(Job.status != JobStatus.REJECTED)
         if hide_rated:
             q = q.filter(Job.user_rating.is_(None))
@@ -150,6 +150,34 @@ class JobRepository:
             if company_type:
                 q = q.filter(Company.company_type == company_type)
         return q.count()
+
+    def count_active_jobs(self) -> int:
+        return (
+            self.session.query(Job)
+            .filter(Job.is_active.is_(True), Job.is_rejected.is_(False), Job.status != JobStatus.REJECTED)
+            .count()
+        )
+
+    def count_high_match_jobs(self, min_score: int = 90) -> int:
+        return (
+            self.session.query(Job)
+            .filter(Job.is_active.is_(True), Job.is_rejected.is_(False), Job.status != JobStatus.REJECTED, Job.fit_score >= min_score)
+            .count()
+        )
+
+    def count_unscored_jobs(self) -> int:
+        return (
+            self.session.query(Job)
+            .filter(Job.is_active.is_(True), Job.is_rejected.is_(False), Job.status != JobStatus.REJECTED, Job.fit_score.is_(None))
+            .count()
+        )
+
+    def count_new_since(self, since: datetime) -> int:
+        return (
+            self.session.query(Job)
+            .filter(Job.is_active.is_(True), Job.is_rejected.is_(False), Job.status != JobStatus.REJECTED, Job.scraped_at > since)
+            .count()
+        )
 
     def get_distinct_sources(self) -> list[str]:
         rows = (
@@ -418,6 +446,22 @@ class JobRepository:
         self.session.commit()
         self.session.refresh(config)
         return config
+
+    def upsert_search_config(self, **kwargs) -> SearchConfig:
+        """Update the single active config in-place, or create one if none exists."""
+        config = self.session.query(SearchConfig).filter(SearchConfig.is_active == True).order_by(SearchConfig.id.desc()).first()  # noqa: E712
+        if config:
+            for k, v in kwargs.items():
+                setattr(config, k, v)
+        else:
+            config = SearchConfig(**kwargs)
+            self.session.add(config)
+        self.session.commit()
+        self.session.refresh(config)
+        return config
+
+    def get_active_search_config(self) -> Optional[SearchConfig]:
+        return self.session.query(SearchConfig).filter(SearchConfig.is_active == True).order_by(SearchConfig.id.desc()).first()  # noqa: E712
 
     def list_search_configs(self, active_only: bool = True) -> list[SearchConfig]:
         q = self.session.query(SearchConfig)
