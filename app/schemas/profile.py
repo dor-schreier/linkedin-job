@@ -57,6 +57,7 @@ class SearchConfigPageResponse(BaseModel):
     country: Optional[str] = None
     max_age_hours: Optional[int] = None
     include_remote: bool = False
+    include_comeet: bool = False
     exclude_keywords: Optional[str] = None
     blocked_companies: Optional[str] = None
     results_wanted: int = 50

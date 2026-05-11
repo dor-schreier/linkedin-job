@@ -232,6 +232,14 @@ export function useScrapeRun() {
   })
 }
 
+export function useScrapeStop() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiFetch('/api/scrape/stop', { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scrape'] }),
+  })
+}
+
 export function useScrapeConfig() {
   return useQuery({
     queryKey: ['scrape', 'config'],

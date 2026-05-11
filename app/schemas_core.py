@@ -224,3 +224,19 @@ class FitScoreBreakdown(BaseModel):
     application_priority: str  # High / Medium / Low
     summary: str  # 2-3 sentence recommendation
     job_summary: Optional[JobSummary] = None  # co-extracted during scoring
+
+
+class ComeetJobExtraction(BaseModel):
+    """Fields extracted from a Comeet job-post page via LLM."""
+
+    title: str
+    company: Optional[str] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
+    date_posted: Optional[str] = None  # ISO YYYY-MM-DD
+    salary_min: Optional[float] = None
+    salary_max: Optional[float] = None
+    salary_currency: Optional[str] = None
+    is_remote: bool = False
+    company_industry: Optional[str] = None
+    company_description: Optional[str] = None

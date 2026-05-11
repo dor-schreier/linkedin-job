@@ -157,6 +157,30 @@ JOB_SUMMARY_SYSTEM_PROMPT = (
     "Return empty lists for list fields and empty string for string fields if not determinable."
 )
 
+COMEET_JOB_EXTRACTION_SYSTEM_PROMPT = (
+    "You are a job posting data extractor. Extract structured fields from the visible text of "
+    "a Comeet job posting page and respond ONLY with valid JSON, no other text, no markdown code fences.\n"
+    "Schema: {\n"
+    '  "title": "<str — the job title>",\n'
+    '  "company": "<str or null — company name if present>",\n'
+    '  "location": "<str or null — city/country>",\n'
+    '  "description": "<str or null — full job description text>",\n'
+    '  "date_posted": "<YYYY-MM-DD or null>",\n'
+    '  "salary_min": <float or null>,\n'
+    '  "salary_max": <float or null>,\n'
+    '  "salary_currency": "<str or null>",\n'
+    '  "is_remote": <bool>,\n'
+    '  "company_industry": "<str or null>",\n'
+    '  "company_description": "<str or null — brief description of the company from the posting>"\n'
+    "}\n"
+    "Rules:\n"
+    "- salary_min / salary_max: raw numeric values only (e.g. 80000.0), no symbols; null if not listed.\n"
+    "- salary_currency: ISO code or symbol (e.g. 'USD', '$') when salary is present; null otherwise.\n"
+    "- is_remote: true ONLY when the posting explicitly uses 'remote' language; false otherwise.\n"
+    "- date_posted: ISO YYYY-MM-DD if a posting date appears; null if absent.\n"
+    "- company: null if not determinable from the text.\n"
+)
+
 
 # ── Rate limiting (Groq only) ─────────────────────────────────────────────────
 
@@ -550,6 +574,32 @@ def enrich_company(
         return validated.model_dump()
     except Exception as e:
         logger.error("enrich_company failed for %r: %s", company_name, e)
+        return None
+
+
+def extract_comeet_job_fields(page_text: str, url: str) -> dict[str, Any] | None:
+    """Extract structured fields from a Comeet job page via LLM. Returns dict or None. Never raises."""
+    from app.schemas import ComeetJobExtraction
+
+    user_prompt = f"URL: {url}\n\nPage text:\n{page_text}"
+
+    try:
+        _rate_limit()
+        client = _get_client()
+        response = client.chat.completions.create(
+            model=_get_model(),
+            messages=[
+                {"role": "system", "content": COMEET_JOB_EXTRACTION_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=1024,
+        )
+        content = response.choices[0].message.content or ""
+        data = _load_llm_json(content)
+        validated = ComeetJobExtraction.model_validate(data)
+        return validated.model_dump()
+    except Exception as e:
+        logger.warning("extract_comeet_job_fields failed for %r: %s", url, e)
         return None
 
 

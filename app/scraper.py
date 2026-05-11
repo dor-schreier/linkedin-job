@@ -397,7 +397,7 @@ def scrape_linkedin_profile(profile_url: str) -> "LinkedInProfile":  # noqa: F82
     return profile
 
 
-def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str]] = None) -> dict:
+def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str]] = None, stop_event=None) -> dict:
     """Run a full scrape cycle: fetch -> filter -> normalize -> dedup -> persist.
 
     config: SearchConfig ORM object (may be detached from a session — scalar
@@ -497,7 +497,12 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
             inserted_ids: list[int] = []
             profile = repo.get_profile()
 
+            stopped = False
             for _, row_series in df.iterrows():
+                if stop_event is not None and stop_event.is_set():
+                    logger.info("Scrape stop requested — breaking out of per-row loop.")
+                    stopped = True
+                    break
                 row = row_series.to_dict()
 
                 # Remote filter: drop remote rows when config says no remote
@@ -659,6 +664,7 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
             "comeet_discovered": comeet_discovered,
             "comeet_parsed": comeet_parsed,
             "comeet_failed": comeet_failed,
+            "stopped": stopped,
         }
 
     except Exception as e:

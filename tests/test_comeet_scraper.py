@@ -14,15 +14,71 @@ def _read_fixture(name: str) -> str:
     return (FIXTURES_DIR / name).read_text(encoding="utf-8")
 
 
+def _make_http_response(html: str = "", status: int = 200) -> MagicMock:
+    mock_resp = MagicMock()
+    mock_resp.status_code = status
+    mock_resp.text = html
+    return mock_resp
+
+
+_LLM_FULL = {
+    "title": "Senior Backend Engineer",
+    "company": "Acme Corp",
+    "location": "Tel Aviv, Israel",
+    "description": "We are looking for a Senior Backend Engineer.",
+    "date_posted": "2024-01-15",
+    "salary_min": None,
+    "salary_max": None,
+    "salary_currency": None,
+    "is_remote": False,
+    "company_industry": None,
+    "company_description": None,
+}
+
+
+class TestIsComeetJobUrl:
+    def test_accepts_valid_job_url(self):
+        from app.scrapers.comeet import _is_comeet_job_url
+        assert _is_comeet_job_url("https://www.comeet.com/jobs/acme-corp/XX.123/software-engineer/abc123")
+
+    def test_rejects_company_page(self):
+        from app.scrapers.comeet import _is_comeet_job_url
+        assert not _is_comeet_job_url("https://www.comeet.com/jobs/acme-corp/")
+
+    def test_rejects_category_page(self):
+        from app.scrapers.comeet import _is_comeet_job_url
+        assert not _is_comeet_job_url("https://www.comeet.com/jobs/acme-corp/engineering/")
+
+    def test_rejects_4_segment_url(self):
+        from app.scrapers.comeet import _is_comeet_job_url
+        assert not _is_comeet_job_url("https://www.comeet.com/jobs/acme/XX.123/dev")
+
+    def test_rejects_6_segment_url(self):
+        from app.scrapers.comeet import _is_comeet_job_url
+        assert not _is_comeet_job_url("https://www.comeet.com/jobs/a/XX.1/b/c/extra")
+
+    def test_rejects_position_code_without_dot(self):
+        from app.scrapers.comeet import _is_comeet_job_url
+        assert not _is_comeet_job_url("https://www.comeet.com/jobs/acme/nodot/software-engineer/abc123")
+
+    def test_rejects_non_comeet_domain(self):
+        from app.scrapers.comeet import _is_comeet_job_url
+        assert not _is_comeet_job_url("https://www.linkedin.com/jobs/acme/XX.1/dev/id")
+
+    def test_accepts_comeet_co_domain(self):
+        from app.scrapers.comeet import _is_comeet_job_url
+        assert _is_comeet_job_url("https://www.comeet.co/jobs/acme-corp/XX.123/software-engineer/abc123")
+
+
 class TestDiscoverComeetUrls:
     def test_returns_comeet_urls_only(self):
         from app.scrapers.comeet import discover_comeet_urls
 
         mock_backend = MagicMock()
         mock_backend.search.return_value = [
-            "https://www.comeet.com/jobs/acme/senior-engineer/123",
+            "https://www.comeet.com/jobs/acme/XX.001/senior-engineer/id1",
             "https://www.google.com/some-other-page",
-            "https://www.comeet.com/jobs/beta-corp/frontend-dev/456",
+            "https://www.comeet.com/jobs/beta-corp/XX.002/frontend-dev/id2",
             "https://linkedin.com/jobs/view/999",
         ]
 
@@ -37,9 +93,9 @@ class TestDiscoverComeetUrls:
 
         mock_backend = MagicMock()
         mock_backend.search.return_value = [
-            "https://www.comeet.com/jobs/acme/senior-engineer/123",
-            "https://www.comeet.com/jobs/acme/senior-engineer/123",
-            "https://www.comeet.com/jobs/acme/senior-engineer/123",
+            "https://www.comeet.com/jobs/acme/XX.001/senior-engineer/id1",
+            "https://www.comeet.com/jobs/acme/XX.001/senior-engineer/id1",
+            "https://www.comeet.com/jobs/acme/XX.001/senior-engineer/id1",
         ]
 
         with patch("app.scrapers.comeet.get_search_backend", return_value=mock_backend):
@@ -56,7 +112,7 @@ class TestDiscoverComeetUrls:
 
         playwright_backend = MagicMock()
         playwright_backend.search.return_value = [
-            "https://www.comeet.com/jobs/fallback-corp/python-dev/999",
+            "https://www.comeet.com/jobs/fallback-corp/XX.789/python-dev/id3",
         ]
 
         with (
@@ -85,63 +141,151 @@ class TestDiscoverComeetUrls:
 
 
 class TestScrapeComeetJob:
-    def test_happy_path(self):
+    def test_llm_invoked_with_stripped_text_and_url(self):
+        """LLM is called with stripped page text (no script/style) and the original URL."""
         from app.scrapers.comeet import scrape_comeet_job
 
         html = _read_fixture("happy_path.html")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.text = html
+        url = "https://www.comeet.com/jobs/acme-corp/senior-engineer/abc"
 
-        with patch("app.scrapers.comeet.requests.get", return_value=mock_resp):
-            result = scrape_comeet_job("https://www.comeet.com/jobs/acme-corp/senior-engineer/abc")
+        with (
+            patch("app.scrapers.comeet.requests.get", return_value=_make_http_response(html)),
+            patch("app.scrapers.comeet.extract_comeet_job_fields", return_value=dict(_LLM_FULL)) as mock_llm,
+        ):
+            scrape_comeet_job(url)
 
-        assert result is not None
-        assert result["title"] == "Senior Backend Engineer"
-        assert result["company"] == "Acme Corp"
-        assert result["location"] == "Tel Aviv, Israel"
-        assert "Backend Engineer" in result["description"]
-        assert result["date_posted"] == datetime.date(2024, 1, 15)
-        assert result["job_url"] == "https://www.comeet.com/jobs/acme-corp/senior-engineer/abc"
+        mock_llm.assert_called_once()
+        page_text_arg, url_arg = mock_llm.call_args[0]
+        assert url_arg == url
+        assert "<script>" not in page_text_arg
+        assert "<style>" not in page_text_arg
+        assert "javascript" not in page_text_arg.lower()
+        assert "Backend Engineer" in page_text_arg
 
-    def test_missing_location_returns_empty_string(self):
+    def test_llm_fields_flow_through(self):
+        """All LLM dict fields including salary/remote/industry appear in the return value."""
         from app.scrapers.comeet import scrape_comeet_job
 
-        html = _read_fixture("missing_location.html")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.text = html
+        llm_return = {
+            "title": "Backend Engineer",
+            "company": "TechCo",
+            "location": "Remote, USA",
+            "description": "Great role at a great company.",
+            "date_posted": "2024-03-01",
+            "salary_min": 80000.0,
+            "salary_max": 120000.0,
+            "salary_currency": "USD",
+            "is_remote": True,
+            "company_industry": "Software",
+            "company_description": "A fast-growing SaaS company.",
+        }
 
-        with patch("app.scrapers.comeet.requests.get", return_value=mock_resp):
-            result = scrape_comeet_job("https://www.comeet.com/jobs/tech-startup/frontend-dev/def")
+        with (
+            patch("app.scrapers.comeet.requests.get", return_value=_make_http_response("<html/>")),
+            patch("app.scrapers.comeet.extract_comeet_job_fields", return_value=llm_return),
+        ):
+            result = scrape_comeet_job("https://www.comeet.com/jobs/techco/be/123")
 
         assert result is not None
-        assert result["title"] == "Frontend Developer"
-        assert result["location"] == ""
+        assert result["title"] == "Backend Engineer"
+        assert result["company"] == "TechCo"
+        assert result["location"] == "Remote, USA"
+        assert result["salary_min"] == 80000.0
+        assert result["salary_max"] == 120000.0
+        assert result["salary_currency"] == "USD"
+        assert result["is_remote"] is True
+        assert result["company_industry"] == "Software"
+        assert result["company_description"] == "A fast-growing SaaS company."
+        assert result["date_posted"] == datetime.date(2024, 3, 1)
+        assert result["job_url"] == "https://www.comeet.com/jobs/techco/be/123"
+
+    def test_llm_returns_none_makes_scraper_return_none(self):
+        """LLM failure (returns None) causes scrape_comeet_job to return None."""
+        from app.scrapers.comeet import scrape_comeet_job
+
+        with (
+            patch("app.scrapers.comeet.requests.get", return_value=_make_http_response("<html/>")),
+            patch("app.scrapers.comeet.extract_comeet_job_fields", return_value=None),
+        ):
+            result = scrape_comeet_job("https://www.comeet.com/jobs/co/role/1")
+
+        assert result is None
+
+    def test_empty_company_falls_back_to_url_slug(self):
+        """Empty company from LLM falls back to slug derived from URL path."""
+        from app.scrapers.comeet import scrape_comeet_job
+
+        llm_return = {**_LLM_FULL, "company": None}
+
+        with (
+            patch("app.scrapers.comeet.requests.get", return_value=_make_http_response("<html/>")),
+            patch("app.scrapers.comeet.extract_comeet_job_fields", return_value=llm_return),
+        ):
+            result = scrape_comeet_job("https://www.comeet.com/jobs/acme-corp/dev/1")
+
+        assert result is not None
+        assert result["company"] == "Acme Corp"
+
+    def test_empty_title_from_llm_returns_none(self):
+        """LLM returning empty title causes scrape_comeet_job to return None."""
+        from app.scrapers.comeet import scrape_comeet_job
+
+        llm_return = {**_LLM_FULL, "title": ""}
+
+        with (
+            patch("app.scrapers.comeet.requests.get", return_value=_make_http_response("<html/>")),
+            patch("app.scrapers.comeet.extract_comeet_job_fields", return_value=llm_return),
+        ):
+            result = scrape_comeet_job("https://www.comeet.com/jobs/co/role/1")
+
+        assert result is None
 
     def test_404_returns_none(self):
         from app.scrapers.comeet import scrape_comeet_job
 
-        mock_resp = MagicMock()
-        mock_resp.status_code = 404
-
-        with patch("app.scrapers.comeet.requests.get", return_value=mock_resp):
+        with patch("app.scrapers.comeet.requests.get", return_value=_make_http_response(status=404)):
             result = scrape_comeet_job("https://www.comeet.com/jobs/gone/position/000")
 
         assert result is None
 
-    def test_empty_page_no_h1_no_og_title_returns_none(self):
+    def test_missing_date_posted_returns_none_for_field(self):
+        """date_posted is None when LLM returns null for that field."""
         from app.scrapers.comeet import scrape_comeet_job
 
-        html = _read_fixture("empty_page.html")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.text = html
+        llm_return = {**_LLM_FULL, "date_posted": None}
 
-        with patch("app.scrapers.comeet.requests.get", return_value=mock_resp):
-            result = scrape_comeet_job("https://www.comeet.com/jobs/old/position/999")
+        with (
+            patch("app.scrapers.comeet.requests.get", return_value=_make_http_response("<html/>")),
+            patch("app.scrapers.comeet.extract_comeet_job_fields", return_value=llm_return),
+        ):
+            result = scrape_comeet_job("https://www.comeet.com/jobs/co/role/1")
 
-        assert result is None
+        assert result is not None
+        assert result["date_posted"] is None
+
+
+class TestHtmlToLlmText:
+    def test_strips_script_style_nav_header_footer(self):
+        """Script/style/nav/header/footer are removed; visible job text survives."""
+        from app.scrapers.comeet import _html_to_llm_text
+
+        html = _read_fixture("happy_path.html")
+        result = _html_to_llm_text(html)
+
+        assert "<script>" not in result
+        assert "<style>" not in result
+        assert "javascript" not in result.lower()
+        assert "tracking" not in result.lower()
+        assert "Backend Engineer" in result
+        assert "PostgreSQL" in result
+
+    def test_truncates_to_max_chars(self):
+        from app.scrapers.comeet import _html_to_llm_text
+
+        html = "<html><body>" + "x" * 20000 + "</body></html>"
+        result = _html_to_llm_text(html, max_chars=100)
+
+        assert len(result) <= 100
 
 
 class TestUrlToCompanySlug:
@@ -169,9 +313,9 @@ class TestStubSeams:
         with pytest.raises(NotImplementedError, match="SerpAPI backend not yet implemented"):
             backend.search("test query", 10)
 
-    def test_google_cse_raises_not_implemented(self):
-        from app.scrapers.search_backends import GoogleCseBackend
+    def test_google_cse_raises_backend_blocked_when_unconfigured(self):
+        from app.scrapers.search_backends import GoogleCseBackend, SearchBackendBlocked
 
         backend = GoogleCseBackend()
-        with pytest.raises(NotImplementedError, match="Google CSE backend not yet implemented"):
+        with pytest.raises(SearchBackendBlocked):
             backend.search("test query", 10)

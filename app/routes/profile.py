@@ -162,6 +162,7 @@ def api_search_config(db: Session = Depends(get_session)):
         country=cfg.country,
         max_age_hours=cfg.max_age_hours,
         include_remote=bool(cfg.include_remote),
+        include_comeet=bool(cfg.include_comeet),
         exclude_keywords=cfg.exclude_keywords,
         blocked_companies=cfg.blocked_companies,
         results_wanted=cfg.results_wanted or 50,

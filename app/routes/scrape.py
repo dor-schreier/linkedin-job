@@ -26,13 +26,14 @@ from app.schemas.scheduler import (
 router = APIRouter()
 
 _scrape_lock = threading.Lock()
-_scrape_status: dict = {"running": False, "last_result": None, "error": None}
+_scrape_stop_event = threading.Event()
+_scrape_status: dict = {"running": False, "last_result": None, "error": None, "stop_requested": False}
 
 
 def _run_scrape_task(config, sites=None) -> None:
     with _scrape_lock:
         try:
-            result = run_scrape(config=config, sites=sites)
+            result = run_scrape(config=config, sites=sites, stop_event=_scrape_stop_event)
             if "error" in result:
                 _scrape_status["error"] = result["error"]
                 _scrape_status["last_result"] = None
@@ -42,6 +43,8 @@ def _run_scrape_task(config, sites=None) -> None:
             _scrape_status["error"] = str(e)
         finally:
             _scrape_status["running"] = False
+            _scrape_status["stop_requested"] = False
+            _scrape_stop_event.clear()
 
 
 @router.get("/scrape", response_model=ScrapePageResponse, tags=["scrape"])
@@ -80,6 +83,7 @@ def scrape_page(session: Session = Depends(get_session)):
             running=bool(_scrape_status["running"]),
             error=_scrape_status.get("error"),
             last_result=last_result_model,
+            stop_requested=bool(_scrape_status.get("stop_requested")),
         ),
     ).model_dump(mode="json"))
 
@@ -120,8 +124,27 @@ def scrape_run(
 
     _scrape_status["running"] = True
     _scrape_status["error"] = None
+    _scrape_status["stop_requested"] = False
+    _scrape_stop_event.clear()
     background_tasks.add_task(_run_scrape_task, config, body.sites)
     return JSONResponse(TaskStartedResponse(started=True, message="Scrape started.").model_dump())
+
+
+@router.post("/scrape/stop", response_model=TaskStartedResponse, tags=["scrape"])
+def scrape_stop():
+    if not _scrape_status.get("running"):
+        return JSONResponse(
+            TaskStartedResponse(started=False, message="No scrape is running.").model_dump(),
+            status_code=409,
+        )
+    _scrape_stop_event.set()
+    _scrape_status["stop_requested"] = True
+    return JSONResponse(
+        TaskStartedResponse(
+            started=True,
+            message="Stop requested — scrape will halt after the current job finishes.",
+        ).model_dump()
+    )
 
 
 class SaveConfigBody(BaseModel):
@@ -176,6 +199,7 @@ def scrape_status():
         running=bool(_scrape_status["running"]),
         error=_scrape_status.get("error"),
         last_result=last_result_model,
+        stop_requested=bool(_scrape_status.get("stop_requested")),
     ).model_dump(mode="json"))
 
 

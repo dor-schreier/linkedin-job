@@ -41,6 +41,7 @@ class ScrapeStateResponse(BaseModel):
     running: bool
     error: Optional[str] = None
     last_result: Optional[ScrapeLastResult] = None
+    stop_requested: bool = False
 
 
 class CleanupStateResponse(BaseModel):

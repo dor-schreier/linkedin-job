@@ -175,10 +175,116 @@ class GoogleCseBackend:
         return urls
 
 
+class VertexAiSearchBackend:
+    """Vertex AI Search backend using Google Cloud Discovery Engine API."""
+
+    _PAGE_SIZE = 10  # max results per API request
+
+    def __init__(self):
+        self.project = os.getenv("GOOGLE_CLOUD_PROJECT", "")
+        self.location = os.getenv("VERTEX_AI_LOCATION", "global")
+        self.data_store_id = os.getenv("VERTEX_AI_DATA_STORE_ID", "")
+        self.engine_id = os.getenv("VERTEX_AI_ENGINE_ID", "")
+
+    def search(self, query: str, max_results: int) -> list[str]:
+        if not self.project or not (self.data_store_id or self.engine_id):
+            raise SearchBackendBlocked(
+                "VertexAiSearchBackend not configured — set GOOGLE_CLOUD_PROJECT and VERTEX_AI_DATA_STORE_ID"
+            )
+
+        try:
+            from google.cloud import discoveryengine_v1
+            from google.api_core import exceptions as google_exceptions
+        except ImportError as exc:
+            raise SearchBackendBlocked(
+                "google-cloud-discoveryengine is not installed — falling back to next backend"
+            ) from exc
+
+        vertex_max = int(os.getenv("VERTEX_AI_MAX_RESULTS", "30"))
+        cap = min(max_results, vertex_max)
+        # Engine-based path supports enterprise features; data-store path requires standard edition only
+        if self.engine_id:
+            serving_config = (
+                f"projects/{self.project}/locations/{self.location}"
+                f"/collections/default_collection/engines/{self.engine_id}"
+                f"/servingConfigs/default_search"
+            )
+        else:
+            serving_config = (
+                f"projects/{self.project}/locations/{self.location}"
+                f"/collections/default_collection/dataStores/{self.data_store_id}"
+                f"/servingConfigs/default_search"
+            )
+
+        client = discoveryengine_v1.SearchServiceClient()
+
+        expansion_setting = os.getenv("VERTEX_AI_QUERY_EXPANSION", "auto").lower()
+        query_expansion_spec = (
+            None
+            if expansion_setting == "disabled"
+            else discoveryengine_v1.SearchRequest.QueryExpansionSpec(
+                condition=discoveryengine_v1.SearchRequest.QueryExpansionSpec.Condition.AUTO
+            )
+        )
+
+        urls: list[str] = []
+        offset = 0
+
+        try:
+            while len(urls) < cap:
+                batch_size = min(self._PAGE_SIZE, cap - len(urls))
+                kwargs: dict = dict(
+                    serving_config=serving_config,
+                    query=query,
+                    page_size=batch_size,
+                    offset=offset,
+                )
+                if query_expansion_spec is not None:
+                    kwargs["query_expansion_spec"] = query_expansion_spec
+                request = discoveryengine_v1.SearchRequest(**kwargs)
+
+                batch_urls: list[str] = []
+                for result in client.search(request):
+                    link = result.document.derived_struct_data.get("link", "")
+                    if link:
+                        batch_urls.append(link)
+                    if len(batch_urls) >= batch_size:
+                        break
+
+                urls.extend(batch_urls)
+                if len(batch_urls) < batch_size:
+                    break
+                offset += self._PAGE_SIZE
+
+            return urls
+        except google_exceptions.PermissionDenied as exc:
+            raise SearchBackendBlocked(f"Vertex AI Search: permission denied — {exc}") from exc
+        except google_exceptions.Unauthenticated as exc:
+            raise SearchBackendBlocked(
+                "Vertex AI Search: unauthenticated — check GOOGLE_APPLICATION_CREDENTIALS or ADC"
+            ) from exc
+        except google_exceptions.ResourceExhausted as exc:
+            raise SearchBackendBlocked(f"Vertex AI Search: quota exhausted — {exc}") from exc
+        except google_exceptions.InvalidArgument as exc:
+            raise SearchBackendBlocked(
+                f"Vertex AI Search: invalid argument (bad data store config?) — {exc}"
+            ) from exc
+        except google_exceptions.FailedPrecondition as exc:
+            raise SearchBackendBlocked(
+                f"Vertex AI Search: enterprise edition required for website search — "
+                f"enable it at https://cloud.google.com/generative-ai-app-builder/docs/enterprise-edition#toggle-enterprise "
+                f"or set VERTEX_AI_ENGINE_ID to use an engine-based serving config — {exc}"
+            ) from exc
+        except google_exceptions.GoogleAPICallError as exc:
+            raise SearchBackendBlocked(f"Vertex AI Search: API error — {exc}") from exc
+
+
 def get_search_backend() -> SearchBackend:
-    """Return a SearchBackend based on GOOGLE_SEARCH_BACKEND env var (default: ddgs)."""
-    backend_name = os.getenv("GOOGLE_SEARCH_BACKEND", "cse").lower()
-    if backend_name == "playwright":
+    """Return a SearchBackend based on GOOGLE_SEARCH_BACKEND env var (default: vertex)."""
+    backend_name = os.getenv("GOOGLE_SEARCH_BACKEND", "vertex").lower()
+    if backend_name in ("vertex", "vertexai"):
+        return VertexAiSearchBackend()
+    elif backend_name == "playwright":
         return PlaywrightGoogleBackend()
     elif backend_name == "google":
         return GoogleScrapeBackend()
@@ -186,5 +292,7 @@ def get_search_backend() -> SearchBackend:
         return SerpApiBackend()
     elif backend_name == "cse":
         return GoogleCseBackend()
-    else:
+    elif backend_name == "ddgs":
         return DdgsBackend()
+    else:
+        return VertexAiSearchBackend()

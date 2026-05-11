@@ -21,6 +21,7 @@ from app.schemas_core import (
     JobSummary,
     CompanyEnrichment,
     FitScoreBreakdown,
+    ComeetJobExtraction,
 )
 
 __all__ = [
@@ -45,4 +46,5 @@ __all__ = [
     "JobSummary",
     "CompanyEnrichment",
     "FitScoreBreakdown",
+    "ComeetJobExtraction",
 ]

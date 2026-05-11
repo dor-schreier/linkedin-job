@@ -57,11 +57,15 @@ OLLAMA_MODEL=qwen2.5:14b
 
 **Comeet search backend config** (`.env`):
 ```
-GOOGLE_SEARCH_BACKEND=cse    # default; options: cse | ddgs | google | playwright
-GOOGLE_CSE_KEY=              # Google Cloud API key with Custom Search API enabled
-GOOGLE_CSE_CX=               # Programmable Search Engine ID
+GOOGLE_SEARCH_BACKEND=vertex     # default; options: vertex | vertexai | cse | ddgs | google | playwright | serpapi
+GOOGLE_CLOUD_PROJECT=            # GCP project ID
+VERTEX_AI_DATA_STORE_ID=         # Discovery Engine data store ID (Web App, restricted to comeet.com/*)
+VERTEX_AI_ENGINE_ID=             # App/Engine ID — required if data store lacks Enterprise edition (website search needs it)
+VERTEX_AI_LOCATION=global        # default; use "us" or "eu" if your data store is regional
+GOOGLE_APPLICATION_CREDENTIALS=  # path to service account JSON (omit to use ADC)
+GOOGLE_CSE_KEY=                  # legacy — existing CSE customers only (closed to new signups)
+GOOGLE_CSE_CX=                   # legacy — Programmable Search Engine ID
 ```
-- Create a Programmable Search Engine at https://programmablesearchengine.google.com — restrict it to `comeet.com/*` for cleaner results.
-- Enable the "Custom Search API" in the associated GCP project and generate an API key restricted to that API.
-- Free quota: 100 queries/day; paid tier $5/1k beyond. Set a GCP budget alert.
-- Fallback chain (automatic): CSE → DdgsBackend → GoogleScrapeBackend → PlaywrightGoogleBackend. If CSE is unconfigured, falls through to `ddgs` cleanly.
+- **Vertex AI Search setup**: create a Web App data store in GCP → Vertex AI Agent Builder, restrict it to `comeet.com/*`, grant `Discovery Engine Viewer` to your service account, then set the four `GOOGLE_*` / `VERTEX_AI_*` vars above (or use `gcloud auth application-default login` for ADC).
+- **CSE is closed to new customers** (as of 2025). Existing customers may continue using it until January 1, 2027.
+- Fallback chain (automatic): configured primary → GoogleScrapeBackend → PlaywrightGoogleBackend. `DdgsBackend` is still selectable via `GOOGLE_SEARCH_BACKEND=ddgs` but is no longer in the automatic fallback chain.

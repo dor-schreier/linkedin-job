@@ -3,7 +3,7 @@ import Layout from '../components/Layout'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
-import { useScrapeState, useScrapeRun, useScrapeConfig } from '../api/queries'
+import { useScrapeState, useScrapeRun, useScrapeStop, useScrapeConfig } from '../api/queries'
 import { useNavigate } from 'react-router-dom'
 
 const ALL_SOURCES = ['linkedin', 'indeed', 'comeet'] as const
@@ -19,12 +19,14 @@ export default function Scrape() {
   const { data: status } = useScrapeState()
   const { data: page } = useScrapeConfig()
   const run = useScrapeRun()
+  const stop = useScrapeStop()
   const navigate = useNavigate()
   const [selected, setSelected] = useState<Set<Source>>(new Set(ALL_SOURCES))
 
   const st = status as any
   const cfg = (page as any)?.latest_config
   const isRunning = st?.running ?? false
+  const stopRequested = st?.stop_requested ?? false
 
   function toggleSource(src: Source) {
     setSelected(prev => {
@@ -46,7 +48,7 @@ export default function Scrape() {
         <Card title="Scrape Status">
           <div className="flex items-center gap-4">
             <Badge color={isRunning ? 'blue' : 'default'}>
-              {isRunning ? 'Running…' : 'Idle'}
+              {isRunning ? (stopRequested ? 'Stopping…' : 'Running…') : 'Idle'}
             </Badge>
             {st?.error && (
               <span className="text-xs text-error">{st.error}</span>
@@ -111,6 +113,17 @@ export default function Scrape() {
             >
               {isRunning ? 'Scraping…' : 'Start Scrape'}
             </Button>
+            {isRunning && (
+              <Button
+                variant="danger"
+                icon="stop"
+                loading={stop.isPending}
+                onClick={() => stop.mutate()}
+                disabled={stopRequested}
+              >
+                {stopRequested ? 'Stopping…' : 'Stop Scrape'}
+              </Button>
+            )}
             {run.isSuccess && !isRunning && (
               <span className="text-sm text-success">Started!</span>
             )}

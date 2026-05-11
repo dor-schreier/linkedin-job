@@ -1,4 +1,4 @@
-"""Comeet job scraper — discovery via Google site search + HTML parsing."""
+"""Comeet job scraper — discovery via Google site search + LLM-driven extraction."""
 from __future__ import annotations
 
 import logging
@@ -10,9 +10,8 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
+from app.services.llm_service import extract_comeet_job_fields
 from app.scrapers.search_backends import (
-    DdgsBackend,
-    GoogleCseBackend,
     GoogleScrapeBackend,
     PlaywrightGoogleBackend,
     SearchBackendBlocked,
@@ -33,7 +32,16 @@ def _is_comeet_job_url(url: str) -> bool:
     try:
         parsed = urlparse(url)
         domain = parsed.netloc.replace("www.", "")
-        return domain in _COMEET_DOMAINS and "/jobs/" in parsed.path
+        if domain not in _COMEET_DOMAINS:
+            return False
+        # Exact shape: /jobs/{company}/{position-code}/{title}/{job-id} (5 non-empty segments)
+        # position-code must contain a dot (e.g. XX.123) to distinguish from category pages
+        parts = [p for p in parsed.path.split("/") if p]
+        return (
+            len(parts) == 5
+            and parts[0] == "jobs"
+            and "." in parts[2]
+        )
     except Exception:
         return False
 
@@ -50,14 +58,14 @@ def discover_comeet_urls(
 ) -> list[str]:
     """Search for Comeet job URLs matching a keyword.
 
-    Tries backends in order: configured primary → DdgsBackend → GoogleScrapeBackend
+    Tries backends in order: configured primary → GoogleScrapeBackend
     → PlaywrightGoogleBackend. Returns a deduped list of comeet.com/jobs/... URLs.
     """
     query = f"site:comeet.com/jobs/ {keyword}"
     primary = get_search_backend()
 
-    # Build fallback chain: primary first, then the fixed fallbacks (skipping duplicates)
-    fixed_fallbacks = [DdgsBackend(), GoogleScrapeBackend(), PlaywrightGoogleBackend()]
+    # Build fallback chain: primary first, then fixed fallbacks (skipping duplicates)
+    fixed_fallbacks = [GoogleScrapeBackend(), PlaywrightGoogleBackend()]
     chain = [primary] + [b for b in fixed_fallbacks if type(b) is not type(primary)]
 
     raw_urls: list[str] = []
@@ -88,12 +96,23 @@ def discover_comeet_urls(
     return urls
 
 
-def scrape_comeet_job(url: str, timeout_s: int = 15) -> Optional[dict]:
-    """Fetch a Comeet job page and return structured data.
+def _html_to_llm_text(html: str, max_chars: int = 12000) -> str:
+    """Strip non-content tags from HTML and return visible text truncated to max_chars."""
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup.find_all(["script", "style", "nav", "header", "footer"]):
+        tag.decompose()
+    return soup.get_text(separator="\n", strip=True)[:max_chars]
 
-    Returns dict with keys: title, company, location, description, job_url, date_posted.
-    Returns None on 404, parse failure, or missing title.
+
+def scrape_comeet_job(url: str, timeout_s: int = 15) -> Optional[dict]:
+    """Fetch a Comeet job page and return structured data via LLM extraction.
+
+    Returns dict with keys: title, company, location, description, job_url, date_posted,
+    salary_min, salary_max, salary_currency, is_remote, company_industry, company_description.
+    Returns None on 404, network error, LLM failure, or empty title.
     """
+    import datetime
+
     headers = {"User-Agent": _USER_AGENT, "Accept-Language": "en-US,en;q=0.9"}
     try:
         resp = requests.get(url, headers=headers, timeout=timeout_s)
@@ -106,80 +125,54 @@ def scrape_comeet_job(url: str, timeout_s: int = 15) -> Optional[dict]:
         if resp.status_code != 200:
             logger.debug("scrape_comeet_job: HTTP %d at %s", resp.status_code, url)
             return None
+        if not _is_comeet_job_url(resp.url):
+            logger.debug("scrape_comeet_job: redirected away from job page %s -> %s", url, resp.url)
+            return None
     except requests.RequestException as exc:
         logger.warning("scrape_comeet_job: request error for %s: %s", url, exc)
         return None
 
-    try:
-        soup = BeautifulSoup(resp.text, "html.parser")
-    except Exception as exc:
-        logger.warning("scrape_comeet_job: parse error for %s: %s", url, exc)
+    page_text = _html_to_llm_text(resp.text)
+    llm_result = extract_comeet_job_fields(page_text, url)
+
+    if llm_result is None:
+        logger.warning("scrape_comeet_job: LLM extraction failed for %s", url)
         return None
 
-    # Title: h1 then og:title meta
-    title_el = soup.find("h1")
-    if title_el:
-        title = title_el.get_text(strip=True)
-    else:
-        og_title = soup.find("meta", property="og:title")
-        title = og_title["content"].strip() if og_title and og_title.get("content") else ""
-
+    title = llm_result.get("title") or ""
     if not title:
         return None
 
-    # Company: derive from URL slug, refine with og:site_name
-    try:
-        path_parts = urlparse(url).path.strip("/").split("/")
-        company_slug = path_parts[1] if len(path_parts) > 1 else ""
-        company = _slug_to_company(company_slug)
-    except Exception:
-        company = ""
-
-    og_site = soup.find("meta", property="og:site_name")
-    if og_site and og_site.get("content"):
-        company = og_site["content"].strip() or company
-
-    # Location: .location class, data-ui="location", or "Location:" text pattern
-    location = ""
-    loc_el = soup.find(class_="location") or soup.find(attrs={"data-ui": "location"})
-    if loc_el:
-        location = loc_el.get_text(strip=True)
-    if not location:
-        for tag in soup.find_all(["span", "div", "p"], limit=50):
-            text = tag.get_text(strip=True)
-            if text.lower().startswith("location:"):
-                location = text[len("location:"):].strip()
-                break
-
-    # Description: main content div, stripped of scripts/styles
-    description = ""
-    content_el = (
-        soup.find(class_=lambda c: c and any(x in c for x in ("job-description", "position-description", "description", "content")))
-        or soup.find("article")
-        or soup.find("main")
-    )
-    if content_el:
-        for tag in content_el.find_all(["script", "style"]):
-            tag.decompose()
-        description = content_el.get_text(separator="\n", strip=True)
-
-    # Date posted: article:published_time meta
-    date_posted = None
-    pub_meta = soup.find("meta", property="article:published_time")
-    if pub_meta and pub_meta.get("content"):
-        import datetime
+    company = llm_result.get("company") or ""
+    if not company:
         try:
-            date_posted = datetime.date.fromisoformat(pub_meta["content"][:10])
+            path_parts = urlparse(url).path.strip("/").split("/")
+            company_slug = path_parts[1] if len(path_parts) > 1 else ""
+            company = _slug_to_company(company_slug)
+        except Exception:
+            company = ""
+
+    date_posted = None
+    date_str = llm_result.get("date_posted")
+    if date_str:
+        try:
+            date_posted = datetime.date.fromisoformat(date_str)
         except (ValueError, TypeError):
             pass
 
     return {
         "title": title,
         "company": company,
-        "location": location,
-        "description": description,
+        "location": llm_result.get("location") or "",
+        "description": llm_result.get("description") or "",
         "job_url": url,
         "date_posted": date_posted,
+        "salary_min": llm_result.get("salary_min"),
+        "salary_max": llm_result.get("salary_max"),
+        "salary_currency": llm_result.get("salary_currency"),
+        "is_remote": llm_result.get("is_remote", False),
+        "company_industry": llm_result.get("company_industry"),
+        "company_description": llm_result.get("company_description"),
     }
 
 
@@ -220,13 +213,13 @@ def comeet_search(
                 "description": job["description"],
                 "site": "comeet",
                 "job_url": job["job_url"],
-                "min_amount": None,
-                "max_amount": None,
-                "currency": "",
+                "min_amount": job.get("salary_min"),
+                "max_amount": job.get("salary_max"),
+                "currency": job.get("salary_currency") or "",
                 "date_posted": job["date_posted"],
-                "is_remote": False,
-                "company_industry": None,
-                "company_description": None,
+                "is_remote": job.get("is_remote", False),
+                "company_industry": job.get("company_industry"),
+                "company_description": job.get("company_description"),
             })
             parsed_total += 1
 
