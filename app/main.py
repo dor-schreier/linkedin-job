@@ -1,4 +1,5 @@
 # ruff: noqa: E402 — load_dotenv() must run before module-level imports
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -11,6 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db
+from app.logging_config import configure_logging
 from app.routes.cv import router as cv_router
 from app.routes.health import router as health_router
 from app.routes.jobs import router as jobs_router
@@ -19,9 +21,13 @@ from app.routes.reject import router as reject_router
 from app.routes.scrape import router as scrape_router
 from app.routes.watch import router as watch_router
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log_file = configure_logging()
+    logger.info("Session started — log file: %s", log_file)
     init_db()
     from app.database import SessionLocal
     from app.repository import JobRepository
@@ -32,15 +38,14 @@ async def lifespan(app: FastAPI):
         if cfg.is_enabled:
             sched_service.start_scheduler(interval_hours=cfg.interval_hours)
     from app.services.llm_service import check_llm_health
-    import logging as _logging
-    _log = _logging.getLogger(__name__)
     _health = check_llm_health()
     if _health["ok"]:
-        _log.info("LLM health OK — provider=%s model=%s", _health["provider"], _health["model"])
+        logger.info("LLM health OK — provider=%s model=%s", _health["provider"], _health["model"])
     else:
-        _log.warning("LLM health check failed — provider=%s model=%s error=%s",
-                     _health["provider"], _health["model"], _health["error"])
+        logger.warning("LLM health check failed — provider=%s model=%s error=%s",
+                       _health["provider"], _health["model"], _health["error"])
     yield
+    logger.info("Session ending")
     sched_service.stop_scheduler()
 
 

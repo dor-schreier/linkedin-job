@@ -189,8 +189,9 @@ _groq_min_interval: float = float(os.environ.get("GROQ_MIN_INTERVAL_SECONDS", "2
 
 
 def _rate_limit() -> None:
-    """Apply rate limiting for Groq. No-op when using Ollama (local = no rate limit)."""
-    if os.environ.get("LLM_PROVIDER", "groq").lower() == "ollama":
+    """Apply rate limiting for Groq. No-op when using Ollama or Google (no fixed inter-call delay needed)."""
+    provider = os.environ.get("LLM_PROVIDER", "groq").lower()
+    if provider in ("ollama", "google", "vertexai"):
         return
     global _last_llm_call
     now = time.monotonic()
@@ -209,6 +210,11 @@ def _get_client() -> OpenAI:
             base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
             api_key="ollama",  # Ollama ignores this but OpenAI SDK requires a value
         )
+    if provider == "google":
+        return OpenAI(
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            api_key=os.environ.get("GOOGLE_API_KEY"),
+        )
     return OpenAI(
         base_url="https://api.groq.com/openai/v1",
         api_key=os.environ.get("GROQ_API_KEY"),
@@ -219,6 +225,10 @@ def _get_model(tier: str = "default") -> str:
     provider = os.environ.get("LLM_PROVIDER", "groq").lower()
     if provider == "ollama":
         return os.environ.get("OLLAMA_MODEL", "qwen2.5:14b")
+    if provider == "google":
+        if tier == "recommend":
+            return os.environ.get("GOOGLE_RECOMMEND_MODEL", "gemini-2.5-flash")
+        return os.environ.get("GOOGLE_FIT_MODEL", "gemini-2.5-flash-lite-preview-06-17")
     if tier == "recommend":
         return os.environ.get("GROQ_RECOMMEND_MODEL", "llama-3.3-70b-versatile")
     return os.environ.get("GROQ_FIT_MODEL", "llama-3.1-8b-instant")

@@ -51,9 +51,12 @@ def _slug_to_company(slug: str) -> str:
     return " ".join(word.capitalize() for word in slug.replace("-", " ").split())
 
 
+_DEFAULT_MAX_RESULTS = int(os.getenv("VERTEX_AI_MAX_RESULTS", "30"))
+
+
 def discover_comeet_urls(
     keyword: str,
-    max_results: int = 30,
+    max_results: int = _DEFAULT_MAX_RESULTS,
     request_delay_ms: int = _DEFAULT_DELAY_MS,
 ) -> list[str]:
     """Search for Comeet job URLs matching a keyword.
@@ -77,7 +80,7 @@ def discover_comeet_urls(
                 logger.warning("comeet discovery: %s returned 0 results for %r — trying next", name, query)
                 raise SearchBackendBlocked("0 results (possible silent block)")
             raw_urls = results
-            logger.debug("comeet discovery: %s succeeded for %r", name, query)
+            logger.info("comeet discovery: %s returned %d raw URLs for %r", name, len(results), query)
             break
         except SearchBackendBlocked as exc:
             logger.warning("comeet discovery: %s blocked (%s) — trying next backend", name, exc)
@@ -87,12 +90,18 @@ def discover_comeet_urls(
 
     seen: set[str] = set()
     urls: list[str] = []
+    rejected_samples: list[str] = []
     for url in raw_urls:
         if _is_comeet_job_url(url) and url not in seen:
             seen.add(url)
             urls.append(url)
+        elif url not in seen and len(rejected_samples) < 5:
+            rejected_samples.append(url)
 
-    logger.info("discover_comeet_urls: keyword=%r discovered=%d", keyword, len(urls))
+    logger.info(
+        "discover_comeet_urls: keyword=%r raw=%d job_urls=%d rejected_samples=%s",
+        keyword, len(raw_urls), len(urls), rejected_samples,
+    )
     return urls
 
 
@@ -178,7 +187,7 @@ def scrape_comeet_job(url: str, timeout_s: int = 15) -> Optional[dict]:
 
 def comeet_search(
     keywords: list[str],
-    max_results_per_keyword: int = 30,
+    max_results_per_keyword: int = _DEFAULT_MAX_RESULTS,
 ) -> "tuple[pd.DataFrame, dict]":
     """Orchestrate Comeet discovery and scraping for all keywords.
 

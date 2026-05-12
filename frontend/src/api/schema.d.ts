@@ -1916,6 +1916,17 @@ export interface components {
             /** Running */
             running: boolean;
         };
+        /** ScrapeProgress */
+        ScrapeProgress: {
+            phase?: string | null;
+            fetch_sources?: Record<string, number> | null;
+            rows_total?: number | null;
+            rows_done?: number | null;
+            inserted?: number | null;
+            skipped?: number | null;
+            scored?: number | null;
+            score_failed?: number | null;
+        };
         /** ScrapeStateResponse */
         ScrapeStateResponse: {
             /** Running */
@@ -1923,6 +1934,8 @@ export interface components {
             /** Error */
             error?: string | null;
             last_result?: components["schemas"]["ScrapeLastResult"] | null;
+            stop_requested?: boolean;
+            progress?: components["schemas"]["ScrapeProgress"] | null;
         };
         /** SearchConfigResponse */
         SearchConfigResponse: {

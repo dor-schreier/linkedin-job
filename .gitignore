@@ -17,4 +17,7 @@ frontend/dist/
 # Local planning & notes
 .specs/
 .suggestions/
+
+# Session logs
+logs/
  

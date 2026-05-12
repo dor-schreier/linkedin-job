@@ -18,6 +18,7 @@ from app.schemas.scheduler import (
     ScrapeLastResult,
     ScrapeLogResponse,
     ScrapePageResponse,
+    ScrapeProgress,
     ScrapeStateResponse,
     SearchConfigResponse,
     TaskStartedResponse,
@@ -27,13 +28,16 @@ router = APIRouter()
 
 _scrape_lock = threading.Lock()
 _scrape_stop_event = threading.Event()
-_scrape_status: dict = {"running": False, "last_result": None, "error": None, "stop_requested": False}
+_scrape_status: dict = {"running": False, "last_result": None, "error": None, "stop_requested": False, "progress": None}
 
 
 def _run_scrape_task(config, sites=None) -> None:
+    def _progress_cb(state: dict) -> None:
+        _scrape_status["progress"] = state
+
     with _scrape_lock:
         try:
-            result = run_scrape(config=config, sites=sites, stop_event=_scrape_stop_event)
+            result = run_scrape(config=config, sites=sites, stop_event=_scrape_stop_event, progress_callback=_progress_cb)
             if "error" in result:
                 _scrape_status["error"] = result["error"]
                 _scrape_status["last_result"] = None
@@ -44,6 +48,7 @@ def _run_scrape_task(config, sites=None) -> None:
         finally:
             _scrape_status["running"] = False
             _scrape_status["stop_requested"] = False
+            _scrape_status["progress"] = None
             _scrape_stop_event.clear()
 
 
@@ -77,6 +82,8 @@ def scrape_page(session: Session = Depends(get_session)):
             skipped=lr.get("skipped", 0),
             total_scraped=lr.get("total_scraped", 0),
         )
+    progress_data = _scrape_status.get("progress")
+    progress_model = ScrapeProgress(**progress_data) if progress_data else None
     return JSONResponse(ScrapePageResponse(
         latest_config=cfg_model,
         status=ScrapeStateResponse(
@@ -84,6 +91,7 @@ def scrape_page(session: Session = Depends(get_session)):
             error=_scrape_status.get("error"),
             last_result=last_result_model,
             stop_requested=bool(_scrape_status.get("stop_requested")),
+            progress=progress_model,
         ),
     ).model_dump(mode="json"))
 
@@ -125,6 +133,7 @@ def scrape_run(
     _scrape_status["running"] = True
     _scrape_status["error"] = None
     _scrape_status["stop_requested"] = False
+    _scrape_status["progress"] = None
     _scrape_stop_event.clear()
     background_tasks.add_task(_run_scrape_task, config, body.sites)
     return JSONResponse(TaskStartedResponse(started=True, message="Scrape started.").model_dump())
@@ -195,11 +204,14 @@ def scrape_status():
             skipped=lr.get("skipped", 0),
             total_scraped=lr.get("total_scraped", 0),
         )
+    progress_data = _scrape_status.get("progress")
+    progress_model = ScrapeProgress(**progress_data) if progress_data else None
     return JSONResponse(ScrapeStateResponse(
         running=bool(_scrape_status["running"]),
         error=_scrape_status.get("error"),
         last_result=last_result_model,
         stop_requested=bool(_scrape_status.get("stop_requested")),
+        progress=progress_model,
     ).model_dump(mode="json"))
 
 

@@ -46,11 +46,14 @@ Self-hosted job search automation platform. FastAPI backend with Jinja2/HTMX fro
 
 **LLM provider config** (`.env`):
 ```
-LLM_PROVIDER=ollama|groq
+LLM_PROVIDER=ollama|groq|google
 GROQ_API_KEY=...
 GROQ_FIT_MODEL=llama-3.1-8b-instant
 GROQ_RECOMMEND_MODEL=llama-3.3-70b-versatile
 OLLAMA_MODEL=qwen2.5:14b
+GOOGLE_API_KEY=...                                    # LLM_PROVIDER=google only
+GOOGLE_FIT_MODEL=gemini-2.5-flash-lite-preview-06-17 # default
+GOOGLE_RECOMMEND_MODEL=gemini-2.5-flash               # default
 ```
 
 **Schema migrations** are in `app/database.py` — `ALTER TABLE` wrapped in try/except for idempotency. Add new columns there, not as separate migration files.
@@ -69,3 +72,24 @@ GOOGLE_CSE_CX=                   # legacy — Programmable Search Engine ID
 - **Vertex AI Search setup**: create a Web App data store in GCP → Vertex AI Agent Builder, restrict it to `comeet.com/*`, grant `Discovery Engine Viewer` to your service account, then set the four `GOOGLE_*` / `VERTEX_AI_*` vars above (or use `gcloud auth application-default login` for ADC).
 - **CSE is closed to new customers** (as of 2025). Existing customers may continue using it until January 1, 2027.
 - Fallback chain (automatic): configured primary → GoogleScrapeBackend → PlaywrightGoogleBackend. `DdgsBackend` is still selectable via `GOOGLE_SEARCH_BACKEND=ddgs` but is no longer in the automatic fallback chain.
+
+## Logging
+
+Session logs are written to `logs/app-YYYYMMDD-HHMMSS.log` — one file per app start, never overwritten. Console output (stdout) receives the same lines. The `logs/` directory is gitignored.
+
+**Log format:** `%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s`
+
+**Logger groups** (defined in `app/logging_config.py`):
+- `app.scraper`, `app.scrapers` — scraping subsystem
+- `app.services.llm_service` — LLM calls
+- `app.services.scheduler` — background jobs
+- `app.services` — other services (cv, watch, analysis, cleanup, reject)
+- `app.routes` — API/HTTP layer
+- `app.repository`, `app.database` — data layer
+- `uvicorn`, `uvicorn.access`, `apscheduler` — third-party (default `WARNING` to suppress noisy access logs)
+
+**Level env vars** (`.env`):
+```
+LOG_LEVEL=INFO            # controls all app.* loggers; set DEBUG for verbose output
+LOG_LEVEL_UVICORN=WARNING # controls uvicorn and apscheduler loggers
+```

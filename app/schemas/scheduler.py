@@ -37,11 +37,23 @@ class CleanupResult(BaseModel):
     duration_ms: int
 
 
+class ScrapeProgress(BaseModel):
+    phase: Optional[str] = None
+    fetch_sources: Optional[dict] = None
+    rows_total: Optional[int] = None
+    rows_done: Optional[int] = None
+    inserted: Optional[int] = None
+    skipped: Optional[int] = None
+    scored: Optional[int] = None
+    score_failed: Optional[int] = None
+
+
 class ScrapeStateResponse(BaseModel):
     running: bool
     error: Optional[str] = None
     last_result: Optional[ScrapeLastResult] = None
     stop_requested: bool = False
+    progress: Optional[ScrapeProgress] = None
 
 
 class CleanupStateResponse(BaseModel):

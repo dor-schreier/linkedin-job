@@ -178,7 +178,7 @@ class GoogleCseBackend:
 class VertexAiSearchBackend:
     """Vertex AI Search backend using Google Cloud Discovery Engine API."""
 
-    _PAGE_SIZE = 10  # max results per API request
+    _PAGE_SIZE = 100  # max results per API request
 
     def __init__(self):
         self.project = os.getenv("GOOGLE_CLOUD_PROJECT", "")

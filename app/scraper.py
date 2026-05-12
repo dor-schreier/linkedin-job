@@ -397,7 +397,7 @@ def scrape_linkedin_profile(profile_url: str) -> "LinkedInProfile":  # noqa: F82
     return profile
 
 
-def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str]] = None, stop_event=None) -> dict:
+def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str]] = None, stop_event=None, progress_callback=None) -> dict:
     """Run a full scrape cycle: fetch -> filter -> normalize -> dedup -> persist.
 
     config: SearchConfig ORM object (may be detached from a session — scalar
@@ -429,6 +429,15 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
             if country.lower() in _GLASSDOOR_COUNTRIES:
                 jobspy_sites.append("glassdoor")
             run_comeet = bool(getattr(config, "include_comeet", False))
+
+        def _cb(state: dict) -> None:
+            if progress_callback is not None:
+                try:
+                    progress_callback(state)
+                except Exception:
+                    pass
+
+        _cb({"phase": "fetching", "fetch_sources": {}})
 
         all_dfs = []
         if jobspy_sites:
@@ -481,16 +490,45 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
             df = pd.DataFrame()
 
         total_scraped = len(df)
+        fetch_sources: dict = {}
+        if not df.empty and "site" in df.columns:
+            fetch_sources = {k: int(v) for k, v in df["site"].value_counts().to_dict().items()}
+        _cb({"phase": "fetching_done", "fetch_sources": fetch_sources, "rows_total": total_scraped})
 
         # Apply post-scrape filter pipeline (blocked companies → exclude keywords → min salary)
         df, filter_counts = apply_filters(df, config)
 
+        rows_total_filtered = len(df)
         inserted = 0
         skipped = 0
         remote_filtered = 0
         scored = 0
         score_skipped = 0
         score_failed = 0
+        rows_done = 0
+
+        def _row_cb() -> None:
+            _cb({
+                "phase": "processing",
+                "fetch_sources": fetch_sources,
+                "rows_total": rows_total_filtered,
+                "rows_done": rows_done,
+                "inserted": inserted,
+                "skipped": skipped,
+                "scored": scored,
+                "score_failed": score_failed,
+            })
+
+        _cb({
+            "phase": "processing",
+            "fetch_sources": fetch_sources,
+            "rows_total": rows_total_filtered,
+            "rows_done": 0,
+            "inserted": 0,
+            "skipped": 0,
+            "scored": 0,
+            "score_failed": 0,
+        })
 
         with SessionLocal() as session:
             repo = JobRepository(session)
@@ -503,21 +541,25 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
                     logger.info("Scrape stop requested — breaking out of per-row loop.")
                     stopped = True
                     break
+                rows_done += 1
                 row = row_series.to_dict()
 
                 # Remote filter: drop remote rows when config says no remote
                 if not include_remote and row.get("is_remote") is True:
                     remote_filtered += 1
+                    _row_cb()
                     continue
 
                 normalized = _normalize_row(row)
 
                 if normalized is None:
                     skipped += 1
+                    _row_cb()
                     continue
 
                 if repo.get_job_by_hash(normalized["job_hash"]):
                     skipped += 1
+                    _row_cb()
                     continue
 
                 created = repo.add_job(**normalized)
@@ -577,6 +619,7 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
                 if created.is_rejected:
                     inserted -= 1
                     inserted_ids.remove(created.id)
+                    _row_cb()
                     continue
 
                 if not skip_intelligence:
@@ -625,6 +668,19 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
                                 _exc,
                             )
                             score_failed += 1
+
+                _row_cb()
+
+            _cb({
+                "phase": "done",
+                "fetch_sources": fetch_sources,
+                "rows_total": rows_total_filtered,
+                "rows_done": rows_done,
+                "inserted": inserted,
+                "skipped": skipped,
+                "scored": scored,
+                "score_failed": score_failed,
+            })
 
             from app.services.watch_service import match_new_jobs_to_watch_rules
             notifications_created = match_new_jobs_to_watch_rules(session, inserted_ids)
