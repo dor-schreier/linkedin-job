@@ -178,7 +178,7 @@ class GoogleCseBackend:
 class VertexAiSearchBackend:
     """Vertex AI Search backend using Google Cloud Discovery Engine API."""
 
-    _PAGE_SIZE = 100  # max results per API request
+    _PAGE_SIZE = 20  # API caps responses at ~20 docs regardless of requested size
 
     def __init__(self):
         self.project = os.getenv("GOOGLE_CLOUD_PROJECT", "")
@@ -252,7 +252,13 @@ class VertexAiSearchBackend:
                         break
 
                 urls.extend(batch_urls)
-                if len(batch_urls) < batch_size:
+                logger.debug(
+                    "VertexAiSearchBackend offset=%d returned=%d total=%d",
+                    offset,
+                    len(batch_urls),
+                    len(urls),
+                )
+                if not batch_urls:
                     break
                 offset += self._PAGE_SIZE
 

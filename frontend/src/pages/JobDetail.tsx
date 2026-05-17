@@ -83,7 +83,14 @@ function useUpdateStatus(id: number) {
   })
 }
 
-const STATUS_OPTIONS = ['NEW', 'SAVED', 'APPLIED', 'INTERVIEWING', 'OFFER', 'REJECTED']
+const STATUS_OPTIONS = [
+  { value: 'new', label: 'NEW' },
+  { value: 'saved', label: 'SAVED' },
+  { value: 'applied', label: 'APPLIED' },
+  { value: 'interviewing', label: 'INTERVIEWING' },
+  { value: 'offer', label: 'OFFER' },
+  { value: 'rejected', label: 'REJECTED' },
+]
 
 function FitBar({ score }: { score: number }) {
   const color = score >= 80 ? 'bg-success' : score >= 60 ? 'bg-warning' : score >= 40 ? 'bg-warning/60' : 'bg-error'
@@ -200,7 +207,7 @@ export default function JobDetail() {
                 className="px-2 py-1 bg-surface-container-low border-none rounded-lg text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </select>
             </div>

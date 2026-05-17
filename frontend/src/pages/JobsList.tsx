@@ -284,7 +284,16 @@ function MultiSelectDropdown({
   )
 }
 
-const STATUS_OPTIONS = ['', 'NEW', 'SAVED', 'APPLIED', 'INTERVIEWING', 'OFFER', 'REJECTED', 'rated']
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'All Statuses' },
+  { value: 'new', label: 'NEW' },
+  { value: 'saved', label: 'SAVED' },
+  { value: 'applied', label: 'APPLIED' },
+  { value: 'interviewing', label: 'INTERVIEWING' },
+  { value: 'offer', label: 'OFFER' },
+  { value: 'rejected', label: 'REJECTED' },
+  { value: 'rated', label: 'rated' },
+]
 const SORT_OPTIONS = [
   { value: 'fit_desc', label: 'Best Fit First' },
   { value: 'freshest', label: 'Freshest First' },
@@ -429,7 +438,7 @@ export default function JobsList() {
               className="px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s || 'All Statuses'}</option>
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
           </div>
@@ -503,8 +512,14 @@ export default function JobsList() {
               className="px-2 py-1.5 bg-surface-container rounded-lg text-xs text-on-surface border-none focus:outline-none"
             >
               <option value="">Set status…</option>
-              {['SAVED', 'APPLIED', 'INTERVIEWING', 'OFFER', 'REJECTED'].map((s) => (
-                <option key={s} value={s}>{s}</option>
+              {[
+                { value: 'saved', label: 'SAVED' },
+                { value: 'applied', label: 'APPLIED' },
+                { value: 'interviewing', label: 'INTERVIEWING' },
+                { value: 'offer', label: 'OFFER' },
+                { value: 'rejected', label: 'REJECTED' },
+              ].map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
             <Button size="sm" onClick={applyBulkStatus} loading={updateStatus.isPending} disabled={!bulkStatus}>
@@ -606,8 +621,15 @@ export default function JobsList() {
                       onChange={(e) => updateStatus.mutate({ jobId: job.id, status: e.target.value })}
                       className="px-2 py-1 bg-surface-container border-none rounded text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary/30"
                     >
-                      {['NEW', 'SAVED', 'APPLIED', 'INTERVIEWING', 'OFFER', 'REJECTED'].map((s) => (
-                        <option key={s} value={s}>{s}</option>
+                      {[
+                        { value: 'new', label: 'NEW' },
+                        { value: 'saved', label: 'SAVED' },
+                        { value: 'applied', label: 'APPLIED' },
+                        { value: 'interviewing', label: 'INTERVIEWING' },
+                        { value: 'offer', label: 'OFFER' },
+                        { value: 'rejected', label: 'REJECTED' },
+                      ].map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>
                   </div>

@@ -87,10 +87,7 @@ def get_gap_recommendations(gaps: list[dict]) -> str | None:
         return None
 
     try:
-        from app.services.llm_service import _get_client, _get_model
-
-        client = _get_client()
-        model = _get_model("recommend")
+        from app.services.llm_service import _chat_complete
 
         skill_lines = "\n".join(
             f"- {g['keyword']} (appears in {g['frequency_pct']}% of matched jobs)"
@@ -102,13 +99,15 @@ def get_gap_recommendations(gaps: list[dict]) -> str | None:
             "paragraph. Be specific and actionable.\n\nMissing skills:\n" + skill_lines
         )
 
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
+        content = _chat_complete(
+            tier="recommend",
+            system=None,
+            user=prompt,
             max_tokens=200,
             temperature=0.5,
+            json_mode=False,
         )
-        return response.choices[0].message.content.strip()
+        return content.strip()
     except Exception as exc:
         logger.warning("get_gap_recommendations failed: %s", exc)
         return None

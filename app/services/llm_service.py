@@ -1,9 +1,10 @@
 """Provider-agnostic LLM wrappers for fit scoring, profile analysis, and enrichment.
 
-Supports Groq (cloud) and Ollama (local) via the OpenAI-compatible API.
-Set LLM_PROVIDER=ollama or LLM_PROVIDER=groq in .env to switch providers.
-All LLM calls funnel through this module so route handlers stay LLM-agnostic.
-Uses sync client to match the existing sync route pattern (JobSpy + SQLAlchemy sync).
+Supports Groq (cloud) and Ollama (local) via the OpenAI-compatible API, and Vertex AI
+(Gemini on GCP) via the google-genai SDK. Set LLM_PROVIDER=ollama, groq, or vertexai in
+.env to switch providers. All LLM calls funnel through this module so route handlers
+stay LLM-agnostic. Uses sync client to match the existing sync route pattern (JobSpy +
+SQLAlchemy sync).
 """
 from __future__ import annotations
 
@@ -189,9 +190,9 @@ _groq_min_interval: float = float(os.environ.get("GROQ_MIN_INTERVAL_SECONDS", "2
 
 
 def _rate_limit() -> None:
-    """Apply rate limiting for Groq. No-op when using Ollama or Google (no fixed inter-call delay needed)."""
+    """Apply rate limiting for Groq. No-op when using Ollama or Vertex AI (no fixed inter-call delay needed)."""
     provider = os.environ.get("LLM_PROVIDER", "groq").lower()
-    if provider in ("ollama", "google", "vertexai"):
+    if provider in ("ollama", "vertexai"):
         return
     global _last_llm_call
     now = time.monotonic()
@@ -203,18 +204,34 @@ def _rate_limit() -> None:
 
 # ── Client / model factory ────────────────────────────────────────────────────
 
+_vertex_client: Any = None
+
+
+def _get_vertex_client() -> Any:
+    """Lazy-init the google-genai client bound to Vertex AI."""
+    global _vertex_client
+    if _vertex_client is not None:
+        return _vertex_client
+    from google import genai  # lazy import so non-vertex deployments don't pay the cost
+
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not project:
+        raise RuntimeError("GOOGLE_CLOUD_PROJECT must be set when LLM_PROVIDER=vertexai")
+    location = os.environ.get("VERTEX_AI_LOCATION", "us-central1")
+    _vertex_client = genai.Client(vertexai=True, project=project, location=location)
+    return _vertex_client
+
+
 def _get_client() -> OpenAI:
+    """Return an OpenAI-compatible client. Only valid for Groq/Ollama providers."""
     provider = os.environ.get("LLM_PROVIDER", "groq").lower()
     if provider == "ollama":
         return OpenAI(
             base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
             api_key="ollama",  # Ollama ignores this but OpenAI SDK requires a value
         )
-    if provider == "google":
-        return OpenAI(
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            api_key=os.environ.get("GOOGLE_API_KEY"),
-        )
+    if provider == "vertexai":
+        raise RuntimeError("_get_client() is not valid for vertexai; use _chat_complete()")
     return OpenAI(
         base_url="https://api.groq.com/openai/v1",
         api_key=os.environ.get("GROQ_API_KEY"),
@@ -225,13 +242,60 @@ def _get_model(tier: str = "default") -> str:
     provider = os.environ.get("LLM_PROVIDER", "groq").lower()
     if provider == "ollama":
         return os.environ.get("OLLAMA_MODEL", "qwen2.5:14b")
-    if provider == "google":
+    if provider == "vertexai":
         if tier == "recommend":
-            return os.environ.get("GOOGLE_RECOMMEND_MODEL", "gemini-2.5-flash")
-        return os.environ.get("GOOGLE_FIT_MODEL", "gemini-2.5-flash-lite-preview-06-17")
+            return os.environ.get("VERTEX_LLM_RECOMMEND_MODEL", "gemini-2.5-flash")
+        return os.environ.get("VERTEX_LLM_FIT_MODEL", "gemini-2.5-flash-lite")
     if tier == "recommend":
         return os.environ.get("GROQ_RECOMMEND_MODEL", "llama-3.3-70b-versatile")
     return os.environ.get("GROQ_FIT_MODEL", "llama-3.1-8b-instant")
+
+
+# ── Unified chat dispatcher (single seam for all public functions) ────────────
+
+def _chat_complete(
+    tier: str,
+    system: str | None,
+    user: str,
+    max_tokens: int,
+    *,
+    temperature: float | None = None,
+    json_mode: bool = True,
+) -> str:
+    """Issue a chat completion against the configured provider and return the raw text.
+
+    Branches on LLM_PROVIDER: Vertex AI uses google-genai's generate_content; Groq/Ollama
+    use the OpenAI-compatible chat.completions API. json_mode hints the model to emit
+    application/json (Vertex only — OpenAI-path callers already strip code fences).
+    """
+    provider = os.environ.get("LLM_PROVIDER", "groq").lower()
+    model = _get_model(tier)
+    if provider == "vertexai":
+        client = _get_vertex_client()
+        config: dict[str, Any] = {"max_output_tokens": max_tokens}
+        if system:
+            config["system_instruction"] = system
+        if json_mode:
+            config["response_mime_type"] = "application/json"
+        if temperature is not None:
+            config["temperature"] = temperature
+        response = client.models.generate_content(
+            model=model,
+            contents=user,
+            config=config,
+        )
+        return response.text or ""
+
+    client = _get_client()
+    messages: list[dict[str, str]] = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": user})
+    kwargs: dict[str, Any] = {"model": model, "messages": messages, "max_tokens": max_tokens}
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    response = client.chat.completions.create(**kwargs)
+    return response.choices[0].message.content or ""
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -323,13 +387,13 @@ def check_llm_health() -> dict[str, Any]:
     provider = os.environ.get("LLM_PROVIDER", "groq").lower()
     model = _get_model()
     try:
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": "Reply with the word OK."}],
+        content = _chat_complete(
+            tier="default",
+            system=None,
+            user="Reply with the word OK.",
             max_tokens=10,
-        )
-        content = (response.choices[0].message.content or "").strip()
+            json_mode=False,
+        ).strip()
         return {"ok": bool(content), "provider": provider, "model": model, "error": None}
     except Exception as e:
         logger.warning("LLM health check failed (%s): %s", provider, e)
@@ -363,16 +427,12 @@ def get_fit_score_and_salary(job, profile) -> dict[str, Any]:
 
     try:
         _rate_limit()
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=_get_model(),
-            messages=[
-                {"role": "system", "content": FIT_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+        content = _chat_complete(
+            tier="default",
+            system=FIT_SYSTEM_PROMPT,
+            user=user_prompt,
             max_tokens=512,
         )
-        content = response.choices[0].message.content or ""
         return _parse_json_response(content)
     except Exception as e:
         logger.error("LLM fit score call failed: %s", e)
@@ -431,16 +491,12 @@ def get_enhanced_fit_score(job, profile, jd_intelligence: dict | None = None) ->
 
     try:
         _rate_limit()
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=_get_model(),
-            messages=[
-                {"role": "system", "content": ENHANCED_FIT_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+        content = _chat_complete(
+            tier="default",
+            system=ENHANCED_FIT_SYSTEM_PROMPT,
+            user=user_prompt,
             max_tokens=1500,
         )
-        content = response.choices[0].message.content or ""
         data = _load_llm_json(content)
         validated = FitScoreBreakdown.model_validate(data)
         return validated.model_dump()
@@ -463,16 +519,12 @@ def get_linkedin_profile_analysis(profile) -> dict[str, Any]:
     )
     try:
         _rate_limit()
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=_get_model("recommend"),
-            messages=[
-                {"role": "system", "content": LINKEDIN_ANALYSIS_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+        content = _chat_complete(
+            tier="recommend",
+            system=LINKEDIN_ANALYSIS_SYSTEM_PROMPT,
+            user=user_prompt,
             max_tokens=2048,
         )
-        content = response.choices[0].message.content or ""
         return _parse_linkedin_analysis_response(content)
     except Exception as e:
         logger.error("LLM LinkedIn analysis call failed: %s", e)
@@ -494,16 +546,12 @@ def get_profile_recommendations(profile) -> list[str]:
     )
     try:
         _rate_limit()
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=_get_model("recommend"),
-            messages=[
-                {"role": "system", "content": RECOMMEND_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+        content = _chat_complete(
+            tier="recommend",
+            system=RECOMMEND_SYSTEM_PROMPT,
+            user=user_prompt,
             max_tokens=512,
         )
-        content = response.choices[0].message.content or ""
         return _parse_recommendations_response(content)
     except Exception as e:
         logger.error("LLM recommendations call failed: %s", e)
@@ -528,16 +576,12 @@ def extract_job_intelligence(job) -> dict[str, Any] | None:
 
     try:
         _rate_limit()
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=_get_model(),
-            messages=[
-                {"role": "system", "content": JOB_INTELLIGENCE_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+        content = _chat_complete(
+            tier="default",
+            system=JOB_INTELLIGENCE_SYSTEM_PROMPT,
+            user=user_prompt,
             max_tokens=1024,
         )
-        content = response.choices[0].message.content or ""
         data = _load_llm_json(content)
         validated = JobIntelligence.model_validate(data)
         return validated.model_dump()
@@ -569,16 +613,12 @@ def enrich_company(
 
     try:
         _rate_limit()
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=_get_model(),
-            messages=[
-                {"role": "system", "content": COMPANY_ENRICHMENT_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+        content = _chat_complete(
+            tier="default",
+            system=COMPANY_ENRICHMENT_SYSTEM_PROMPT,
+            user=user_prompt,
             max_tokens=256,
         )
-        content = response.choices[0].message.content or ""
         data = _load_llm_json(content)
         validated = CompanyEnrichment.model_validate(data)
         return validated.model_dump()
@@ -595,16 +635,12 @@ def extract_comeet_job_fields(page_text: str, url: str) -> dict[str, Any] | None
 
     try:
         _rate_limit()
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=_get_model(),
-            messages=[
-                {"role": "system", "content": COMEET_JOB_EXTRACTION_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+        content = _chat_complete(
+            tier="default",
+            system=COMEET_JOB_EXTRACTION_SYSTEM_PROMPT,
+            user=user_prompt,
             max_tokens=1024,
         )
-        content = response.choices[0].message.content or ""
         data = _load_llm_json(content)
         validated = ComeetJobExtraction.model_validate(data)
         return validated.model_dump()
@@ -626,16 +662,12 @@ def extract_job_summary(job) -> dict[str, Any] | None:
 
     try:
         _rate_limit()
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=_get_model(),
-            messages=[
-                {"role": "system", "content": JOB_SUMMARY_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+        content = _chat_complete(
+            tier="default",
+            system=JOB_SUMMARY_SYSTEM_PROMPT,
+            user=user_prompt,
             max_tokens=512,
         )
-        content = response.choices[0].message.content or ""
         data = _load_llm_json(content)
         validated = JobSummary.model_validate(data)
         return validated.model_dump()

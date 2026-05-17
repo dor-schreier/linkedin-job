@@ -46,14 +46,15 @@ Self-hosted job search automation platform. FastAPI backend with Jinja2/HTMX fro
 
 **LLM provider config** (`.env`):
 ```
-LLM_PROVIDER=ollama|groq|google
+LLM_PROVIDER=ollama|groq|vertexai
 GROQ_API_KEY=...
 GROQ_FIT_MODEL=llama-3.1-8b-instant
 GROQ_RECOMMEND_MODEL=llama-3.3-70b-versatile
 OLLAMA_MODEL=qwen2.5:14b
-GOOGLE_API_KEY=...                                    # LLM_PROVIDER=google only
-GOOGLE_FIT_MODEL=gemini-2.5-flash-lite-preview-06-17 # default
-GOOGLE_RECOMMEND_MODEL=gemini-2.5-flash               # default
+VERTEX_LLM_FIT_MODEL=gemini-2.5-flash-lite # default; LLM_PROVIDER=vertexai only
+VERTEX_LLM_RECOMMEND_MODEL=gemini-2.5-flash # default; LLM_PROVIDER=vertexai only
+# Vertex AI LLM auth/project/location are shared with the Vertex AI Search section below
+# (GOOGLE_CLOUD_PROJECT, VERTEX_AI_LOCATION, GOOGLE_APPLICATION_CREDENTIALS).
 ```
 
 **Schema migrations** are in `app/database.py` — `ALTER TABLE` wrapped in try/except for idempotency. Add new columns there, not as separate migration files.

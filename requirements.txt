@@ -17,3 +17,4 @@ beautifulsoup4>=4.12
 requests>=2.30
 json-repair>=0.30
 google-cloud-discoveryengine>=0.11
+google-genai>=0.3
