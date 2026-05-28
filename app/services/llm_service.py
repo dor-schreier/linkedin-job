@@ -203,6 +203,30 @@ LINKEDIN_PDF_SYSTEM_PROMPT = (
     "- Omit publications, recommendations, courses, test_scores, featured — leave them as empty lists.\n"
 )
 
+MANUAL_JOB_EXTRACTION_SYSTEM_PROMPT = (
+    "You are a job posting data extractor. Extract structured fields from the visible text of "
+    "a job posting page and respond ONLY with valid JSON, no other text, no markdown code fences.\n"
+    "Schema: {\n"
+    '  "title": "<str — the job title>",\n'
+    '  "company": "<str — company name>",\n'
+    '  "location": "<str — city/country/remote, or empty string if not found>",\n'
+    '  "description": "<str — full job description text>"\n'
+    "}\n"
+    "Rules:\n"
+    "- title and company are required; use empty string if truly absent.\n"
+    "- location: prefer city + country format; use 'Remote' if explicitly remote-only.\n"
+    "- description: the full job posting body text (requirements, responsibilities, etc.).\n"
+    "- Never hallucinate data. If a field cannot be determined, use empty string.\n"
+    "- Respond ONLY with the JSON object, no other text."
+)
+
+MANUAL_JOB_EXTRACTION_SAFE_FALLBACK: dict[str, Any] = {
+    "title": "",
+    "company": "",
+    "location": "",
+    "description": "",
+}
+
 COMEET_JOB_EXTRACTION_SYSTEM_PROMPT = (
     "You are a job posting data extractor. Extract structured fields from the visible text of "
     "a Comeet job posting page and respond ONLY with valid JSON, no other text, no markdown code fences.\n"
@@ -769,6 +793,35 @@ def extract_comeet_job_fields(page_text: str, url: str) -> dict[str, Any] | None
     except Exception as e:
         logger.warning("extract_comeet_job_fields failed for %r: %s", url, e)
         return None
+
+
+def extract_job_metadata(text: str, url: str) -> dict[str, Any]:
+    """Extract title, company, location, description from raw job page text via LLM.
+
+    Returns a dict with those four keys. Falls back to empty strings on any failure. Never raises.
+    """
+    user_prompt = f"URL: {url}\n\nPage text:\n{text[:6000]}"
+    try:
+        _rate_limit()
+        content = _chat_complete(
+            tier="default",
+            system=MANUAL_JOB_EXTRACTION_SYSTEM_PROMPT,
+            user=user_prompt,
+            max_tokens=1024,
+        )
+        data = _load_llm_json(content)
+        if not isinstance(data, dict):
+            logger.warning("extract_job_metadata: LLM returned non-dict for %r", url)
+            return dict(MANUAL_JOB_EXTRACTION_SAFE_FALLBACK)
+        return {
+            "title": str(data.get("title") or ""),
+            "company": str(data.get("company") or ""),
+            "location": str(data.get("location") or ""),
+            "description": str(data.get("description") or ""),
+        }
+    except Exception as exc:
+        logger.error("extract_job_metadata failed for %r: %s", url, exc)
+        return dict(MANUAL_JOB_EXTRACTION_SAFE_FALLBACK)
 
 
 def extract_job_summary(job) -> dict[str, Any] | None:

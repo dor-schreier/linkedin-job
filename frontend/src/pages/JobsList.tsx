@@ -422,6 +422,10 @@ export default function JobsList() {
   const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkStatus, setBulkStatus] = useState('')
+  const [showAddUrl, setShowAddUrl] = useState(false)
+  const [addUrlValue, setAddUrlValue] = useState('')
+  const [addUrlLoading, setAddUrlLoading] = useState(false)
+  const [addUrlError, setAddUrlError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { data, isLoading, error } = useJobs(filters, page)
   const updateStatus = useUpdateStatus()
@@ -466,6 +470,32 @@ export default function JobsList() {
 
   const selCount = selectedIds.size
 
+  async function handleAddUrl() {
+    const url = addUrlValue.trim()
+    if (!url) return
+    setAddUrlLoading(true)
+    setAddUrlError(null)
+    try {
+      const res = await fetch('/api/jobs/add-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAddUrlError(data?.detail ?? 'Something went wrong. Try again.')
+        return
+      }
+      setShowAddUrl(false)
+      setAddUrlValue('')
+      navigate(`/jobs/${data.job_id}`)
+    } catch {
+      setAddUrlError("Couldn't reach the server. Try again.")
+    } finally {
+      setAddUrlLoading(false)
+    }
+  }
+
   return (
     <Layout title="Jobs" active="jobs">
       <div className="space-y-6">
@@ -505,6 +535,9 @@ export default function JobsList() {
               )}
               <Button icon="add_task" onClick={() => navigate('/scrape')} disabled={stats.scraper_running}>
                 Find New Jobs
+              </Button>
+              <Button icon="link" variant="ghost" onClick={() => { setAddUrlError(null); setShowAddUrl(true) }}>
+                Add by URL
               </Button>
             </div>
           </div>
@@ -772,6 +805,45 @@ export default function JobsList() {
         )}
 
       </div>
+
+      {/* Add by URL modal */}
+      {showAddUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => !addUrlLoading && setShowAddUrl(false)}>
+          <div className="bg-surface-container-lowest rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-primary" style={{ fontSize: 22 }}>link</span>
+              <h2 className="text-base font-semibold text-on-surface">Add job by URL</h2>
+            </div>
+            <p className="text-xs text-outline">Paste any job posting URL (LinkedIn, Greenhouse, Lever, etc.) and we'll fetch, parse, and score it automatically.</p>
+            <input
+              autoFocus
+              type="url"
+              placeholder="https://www.linkedin.com/jobs/view/..."
+              value={addUrlValue}
+              onChange={(e) => setAddUrlValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddUrl() }}
+              disabled={addUrlLoading}
+              className="w-full px-3 py-2.5 bg-surface-container border border-outline-variant/30 rounded-lg text-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+            />
+            {addUrlError && (
+              <div className="flex items-start gap-2 px-3 py-2.5 bg-error/10 rounded-lg">
+                <span className="material-symbols-outlined text-error shrink-0" style={{ fontSize: 16 }}>error</span>
+                <p className="text-xs text-error">{addUrlError}</p>
+              </div>
+            )}
+            {addUrlLoading && (
+              <div className="flex items-center gap-2 px-3 py-2.5 bg-primary/10 rounded-lg">
+                <span className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
+                <p className="text-xs text-primary">Fetching and parsing — this can take up to 15 s for LinkedIn…</p>
+              </div>
+            )}
+            <div className="flex gap-2 justify-end pt-1">
+              <Button variant="ghost" size="sm" onClick={() => setShowAddUrl(false)} disabled={addUrlLoading}>Cancel</Button>
+              <Button size="sm" onClick={handleAddUrl} loading={addUrlLoading} disabled={!addUrlValue.trim()}>Add Job</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

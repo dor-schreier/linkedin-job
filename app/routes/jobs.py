@@ -343,6 +343,81 @@ def get_tracker_jobs(db: Session = Depends(get_session)):
     return JSONResponse(result)
 
 
+class AddJobByUrlRequest(BaseModel):
+    url: str
+
+
+@router.post("/jobs/add-url", tags=["jobs"])
+def add_job_by_url(body: AddJobByUrlRequest, db: Session = Depends(get_session)):
+    """Fetch a job posting from a URL, extract metadata via LLM, and insert it into the DB."""
+    import hashlib
+    url = body.url.strip()
+    if not url:
+        raise HTTPException(status_code=422, detail="url is required")
+
+    text, is_active = _fetch_description_from_url(url)
+    if not text:
+        raise HTTPException(status_code=422, detail="Could not read that page — check the URL or try again")
+
+    meta = groq_service.extract_job_metadata(text, url)
+    title = meta.get("title") or ""
+    company = meta.get("company") or ""
+    location = meta.get("location") or ""
+    description = meta.get("description") or text
+
+    if not title or not company:
+        raise HTTPException(status_code=422, detail="Couldn't extract job title or company from that page")
+
+    raw = f"{title.strip()}|{company.strip()}|{location.strip()}".lower()
+    job_hash = hashlib.sha256(raw.encode()).hexdigest()
+
+    repo = JobRepository(db)
+    existing = repo.get_job_by_hash(job_hash)
+    if existing:
+        return JSONResponse({"job_id": existing.id, "created": False})
+
+    from datetime import datetime, timezone
+    job = repo.add_job(
+        title=title,
+        company=company,
+        location=location,
+        description=description,
+        source="manual",
+        apply_url=url,
+        job_hash=job_hash,
+        is_active=True if is_active is None else is_active,
+        scraped_at=datetime.now(timezone.utc),
+    )
+
+    intel_result = groq_service.extract_job_intelligence(job)
+    if intel_result is not None:
+        job.intelligence_json = json.dumps(intel_result)
+        db.commit()
+
+    profile = repo.get_profile()
+    if profile:
+        breakdown = groq_service.get_enhanced_fit_score(job, profile, jd_intelligence=intel_result)
+        if breakdown is not None:
+            job_summary = breakdown.get("job_summary")
+            score_to_store = {k: v for k, v in breakdown.items() if k != "job_summary"}
+            repo.update_job_score_breakdown(
+                job_id=job.id,
+                score_breakdown_json=json.dumps(score_to_store),
+                fit_score=int(breakdown["overall_score"]),
+                fit_summary=breakdown["summary"],
+            )
+            if job_summary:
+                repo.update_job_summary(
+                    job_id=job.id,
+                    tech_stack_json=json.dumps(job_summary.get("tech_stack", [])),
+                    qualifications_json=json.dumps(job_summary.get("qualifications", [])),
+                    experience_needed=job_summary.get("experience_needed"),
+                    general_description=job_summary.get("general_description"),
+                )
+
+    return JSONResponse({"job_id": job.id, "created": True})
+
+
 @router.get("/jobs/{job_id}", response_model=JobDetailResponse, tags=["jobs"])
 def job_detail(job_id: int, db: Session = Depends(get_session)):
     if job_id <= 0:
