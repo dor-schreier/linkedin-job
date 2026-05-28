@@ -11,6 +11,8 @@ from app.repository import JobRepository
 from app.schemas.profile import (
     KeywordGapItem,
     KeywordGapsResponse,
+    ProfileEducationItem,
+    ProfileExperienceItem,
     ProfileOptimizerResponse,
     ProfileResponse,
     ProfileSaveRequest,
@@ -22,13 +24,8 @@ from app.services import llm_service as groq_service
 router = APIRouter()
 
 
-@router.get("/api/profile", response_model=ProfileResponse, tags=["profile"])
-def api_get_profile(db: Session = Depends(get_session)):
-    repo = JobRepository(db)
-    profile = repo.get_profile()
-    if not profile:
-        return JSONResponse(ProfileResponse().model_dump(mode="json"))
-    return JSONResponse(ProfileResponse(
+def _profile_response(profile) -> ProfileResponse:
+    return ProfileResponse(
         linkedin_url=profile.linkedin_url,
         skills=profile.skills,
         current_title=profile.current_title,
@@ -37,7 +34,40 @@ def api_get_profile(db: Session = Depends(get_session)):
         ai_recommendations=profile.ai_recommendations,
         linkedin_analysis=profile.linkedin_analysis,
         linkedin_analyzed_at=profile.linkedin_analyzed_at,
-    ).model_dump(mode="json"))
+        experiences=[
+            ProfileExperienceItem(
+                title=e.title,
+                company=e.company,
+                location=e.location,
+                start_date=e.start_date,
+                end_date=e.end_date,
+                is_current=e.is_current,
+                description=e.description,
+            )
+            for e in profile.experiences
+        ],
+        educations=[
+            ProfileEducationItem(
+                school=e.school,
+                degree=e.degree,
+                field_of_study=e.field_of_study,
+                start_year=e.start_year,
+                end_year=e.end_year,
+                grade=e.grade,
+                description=e.description,
+            )
+            for e in profile.educations
+        ],
+    )
+
+
+@router.get("/api/profile", response_model=ProfileResponse, tags=["profile"])
+def api_get_profile(db: Session = Depends(get_session)):
+    repo = JobRepository(db)
+    profile = repo.get_profile()
+    if not profile:
+        return JSONResponse(ProfileResponse().model_dump(mode="json"))
+    return JSONResponse(_profile_response(profile).model_dump(mode="json"))
 
 
 @router.put("/api/profile", response_model=ProfileResponse, tags=["profile"])
@@ -46,23 +76,18 @@ def api_save_profile(body: ProfileSaveRequest, db: Session = Depends(get_session
     if body.years_experience is not None:
         years_int = body.years_experience
     repo = JobRepository(db)
+    experiences = [e.model_dump() for e in body.experiences] if body.experiences is not None else None
+    educations = [e.model_dump() for e in body.educations] if body.educations is not None else None
     profile = repo.upsert_profile(
         linkedin_url=body.linkedin_url or None,
         skills=body.skills or None,
         current_title=body.current_title or None,
         target_title=body.target_title or None,
         years_experience=years_int,
+        experiences=experiences,
+        educations=educations,
     )
-    return JSONResponse(ProfileResponse(
-        linkedin_url=profile.linkedin_url,
-        skills=profile.skills,
-        current_title=profile.current_title,
-        target_title=profile.target_title,
-        years_experience=profile.years_experience,
-        ai_recommendations=profile.ai_recommendations,
-        linkedin_analysis=profile.linkedin_analysis,
-        linkedin_analyzed_at=profile.linkedin_analyzed_at,
-    ).model_dump(mode="json"))
+    return JSONResponse(_profile_response(profile).model_dump(mode="json"))
 
 
 @router.post("/api/profile/analyze", response_model=RecommendationsResponse, tags=["profile"])

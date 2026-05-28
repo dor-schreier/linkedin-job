@@ -85,8 +85,10 @@ def list_watch_matches(db: Session = Depends(get_session)):
             job_title=job.title,
             company=job.company,
             location=job.location,
-            rule_type=rule.rule_type,
-            rule_value=rule.value,
+            rule_type=rule.rule_type if rule else None,
+            rule_value=rule.value if rule else None,
+            kind=getattr(notif, 'kind', 'watch_match') or 'watch_match',
+            message=getattr(notif, 'message', None),
             is_read=notif.is_read,
             created_at=notif.created_at,
         )

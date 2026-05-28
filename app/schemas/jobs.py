@@ -20,6 +20,15 @@ class HeroStats(BaseModel):
     last_scrape_skipped: Optional[int] = None
 
 
+class NextInterviewResponse(BaseModel):
+    id: int
+    scheduled_at: datetime
+    interview_type: str
+    medium: str
+    location: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class JobResponse(BaseModel):
     id: int
     title: str
@@ -37,12 +46,14 @@ class JobResponse(BaseModel):
     user_rating: Optional[int] = None
     is_active: bool
     is_rejected: bool
+    applied_at: Optional[datetime] = None
     scraped_at: datetime
     sector: Optional[str] = None
     company_type: Optional[str] = None
     required_skills: list[str] = []
     tech_stack: list[str] = []
     days_since_posted: Optional[int] = None
+    next_interview: Optional[NextInterviewResponse] = None
 
     @field_validator("status", mode="before")
     @classmethod

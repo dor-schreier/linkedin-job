@@ -13,6 +13,7 @@ from app.scraper import run_scrape
 from app.schemas.scheduler import (
     CleanupResult,
     CleanupStateResponse,
+    HistoryPageResponse,
     SchedulerPageResponse,
     SchedulerStatusResponse,
     ScrapeLastResult,
@@ -32,19 +33,51 @@ _scrape_status: dict = {"running": False, "last_result": None, "error": None, "s
 
 
 def _run_scrape_task(config, sites=None) -> None:
+    from app.database import SessionLocal
+    from app.repository import JobRepository
+
     def _progress_cb(state: dict) -> None:
         _scrape_status["progress"] = state
 
     with _scrape_lock:
+        with SessionLocal() as session:
+            repo = JobRepository(session)
+            log = repo.create_scrape_log(config_id=config.id, trigger="manual")
+            log_id = log.id
+
         try:
             result = run_scrape(config=config, sites=sites, stop_event=_scrape_stop_event, progress_callback=_progress_cb)
             if "error" in result:
                 _scrape_status["error"] = result["error"]
                 _scrape_status["last_result"] = None
+                with SessionLocal() as session:
+                    repo = JobRepository(session)
+                    repo.finish_scrape_log(log_id, jobs_found=0, jobs_new=0, error=result["error"])
             else:
                 _scrape_status["last_result"] = result
+                _fs = result.get("fetch_sources") or {}
+                with SessionLocal() as session:
+                    repo = JobRepository(session)
+                    repo.finish_scrape_log(
+                        log_id,
+                        jobs_found=result.get("total_scraped", 0),
+                        jobs_new=result.get("inserted", 0),
+                        linkedin_count=_fs.get("linkedin"),
+                        indeed_count=_fs.get("indeed"),
+                        glassdoor_count=_fs.get("glassdoor"),
+                        comeet_count=result.get("comeet_parsed"),
+                        filter_blocked=result.get("filter_blocked_companies"),
+                        filter_keywords=result.get("filter_exclude_keywords"),
+                        filter_salary=result.get("filter_min_salary"),
+                        filter_remote=result.get("remote_filtered"),
+                        jobs_scored=result.get("scored"),
+                        score_failed=result.get("score_failed"),
+                    )
         except Exception as e:
             _scrape_status["error"] = str(e)
+            with SessionLocal() as session:
+                repo = JobRepository(session)
+                repo.finish_scrape_log(log_id, jobs_found=0, jobs_new=0, error=str(e))
         finally:
             _scrape_status["running"] = False
             _scrape_status["stop_requested"] = False
@@ -235,6 +268,17 @@ def scheduler_page(session: Session = Depends(get_session)):
             jobs_new=log.jobs_new,
             status=log.status,
             error=log.error,
+            trigger=log.trigger,
+            linkedin_count=log.linkedin_count,
+            indeed_count=log.indeed_count,
+            glassdoor_count=log.glassdoor_count,
+            comeet_count=log.comeet_count,
+            filter_blocked=log.filter_blocked,
+            filter_keywords=log.filter_keywords,
+            filter_salary=log.filter_salary,
+            filter_remote=log.filter_remote,
+            jobs_scored=log.jobs_scored,
+            score_failed=log.score_failed,
         )
         for log in logs
     ]
@@ -258,6 +302,36 @@ def scheduler_page(session: Session = Depends(get_session)):
         cleanup_last_run_at=cleanup_status.get("last_run_at"),
         cleanup_last_result=cleanup_result_model,
     ).model_dump(mode="json"))
+
+
+@router.get("/scrape/history", response_model=HistoryPageResponse, tags=["scrape"])
+def scrape_history(page: int = 1, page_size: int = 25, session: Session = Depends(get_session)):
+    repo = JobRepository(session)
+    items, total = repo.list_scrape_logs_paginated(page=page, page_size=page_size)
+    log_models = [
+        ScrapeLogResponse(
+            id=log.id,
+            started_at=log.started_at,
+            finished_at=log.finished_at,
+            jobs_found=log.jobs_found,
+            jobs_new=log.jobs_new,
+            status=log.status,
+            error=log.error,
+            trigger=log.trigger,
+            linkedin_count=log.linkedin_count,
+            indeed_count=log.indeed_count,
+            glassdoor_count=log.glassdoor_count,
+            comeet_count=log.comeet_count,
+            filter_blocked=log.filter_blocked,
+            filter_keywords=log.filter_keywords,
+            filter_salary=log.filter_salary,
+            filter_remote=log.filter_remote,
+            jobs_scored=log.jobs_scored,
+            score_failed=log.score_failed,
+        )
+        for log in items
+    ]
+    return JSONResponse(HistoryPageResponse(items=log_models, total=total, page=page, page_size=page_size).model_dump(mode="json"))
 
 
 @router.post("/scheduler/toggle", response_model=SchedulerStatusResponse, tags=["scheduler"])

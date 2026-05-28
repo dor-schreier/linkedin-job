@@ -18,3 +18,12 @@ class CVListItem(BaseModel):
 class CVExportResponse(BaseModel):
     cv_data: CVData
     profile_url: str
+
+
+class TailoredCVResponse(BaseModel):
+    job_id: int
+    generated_at: datetime
+    pdf_url: str
+    docx_url: str
+    model_used: str | None = None
+    cv: CVData

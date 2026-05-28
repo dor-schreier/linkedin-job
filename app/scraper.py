@@ -143,7 +143,16 @@ def _normalize_row(row: dict) -> Optional[dict]:
     salary_min = _numeric(row.get("min_amount"))
     salary_max = _numeric(row.get("max_amount"))
 
-    job_hash = _compute_hash(title, company, location)
+    from app.scrapers.comeet import _comeet_identity, _is_comeet_job_url
+    if source == "comeet" or _is_comeet_job_url(apply_url):
+        identity = _comeet_identity(apply_url)
+        if identity:
+            job_hash = hashlib.sha256(f"comeet|{identity}".encode()).hexdigest()
+        else:
+            logger.warning("_normalize_row: could not parse Comeet URL %r — falling back to legacy hash", apply_url)
+            job_hash = _compute_hash(title, company, location)
+    else:
+        job_hash = _compute_hash(title, company, location)
 
     # date_posted: JobSpy returns a date object or None
     import datetime as _dt
@@ -590,10 +599,12 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
 
                             _industry = _to_str(row.get("company_industry")) or None
                             _co_desc = _to_str(row.get("company_description")) or None
+                            _job_desc = _to_str(row.get("description")) or None
                             _enrichment = _enrich_co(
                                 company_name=_company_name,
                                 company_industry=_industry,
                                 company_description=_co_desc,
+                                job_description=_job_desc,
                             )
                             if _enrichment:
                                 _co = repo.upsert_company(
@@ -721,6 +732,7 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
             "comeet_parsed": comeet_parsed,
             "comeet_failed": comeet_failed,
             "stopped": stopped,
+            "fetch_sources": fetch_sources,
         }
 
     except Exception as e:

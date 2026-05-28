@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models import Company, CVRecord, Job, JobStatus, LinkedInProfileRaw, Notification, Profile, RejectAuditLog, RejectRule, SchedulerConfig, ScrapeLog, SearchConfig, WatchRule
+from app.models import Company, CVRecord, Interview, Job, JobStatus, LinkedInProfileRaw, Notification, Profile, ProfileEducation, ProfileExperience, RejectAuditLog, RejectRule, SchedulerConfig, ScrapeLog, SearchConfig, TailoredCV, UploadedCV, WatchRule
 
 
 class JobRepository:
@@ -42,6 +42,8 @@ class JobRepository:
         show_inactive: bool = False,
         include_rejected: bool = False,
         search_text: Optional[str] = None,
+        title_include: Optional[list[str]] = None,
+        title_exclude: Optional[list[str]] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Job]:
@@ -72,6 +74,12 @@ class JobRepository:
                 Job.company.ilike(f"%{search_text}%"),
                 Job.location.ilike(f"%{search_text}%"),
             ))
+        if title_include:
+            for kw in title_include:
+                q = q.filter(Job.title.ilike(f"%{kw}%"))
+        if title_exclude:
+            for kw in title_exclude:
+                q = q.filter(~Job.title.ilike(f"%{kw}%"))
         if fresh_only:
             from datetime import timedelta
             cutoff = date.today() - timedelta(days=3)
@@ -92,6 +100,8 @@ class JobRepository:
             q = q.order_by(Job.user_rating.desc().nullslast(), Job.scraped_at.desc())
         elif sort == "date_posted_asc":
             q = q.order_by(Job.date_posted.asc().nullslast(), Job.scraped_at.asc())
+        elif sort == "scraped_desc":
+            q = q.order_by(Job.scraped_at.desc())
         else:
             q = q.order_by(Job.scraped_at.desc())
         return q.offset(offset).limit(limit).all()
@@ -111,6 +121,8 @@ class JobRepository:
         show_inactive: bool = False,
         include_rejected: bool = False,
         search_text: Optional[str] = None,
+        title_include: Optional[list[str]] = None,
+        title_exclude: Optional[list[str]] = None,
     ) -> int:
         q = self.session.query(Job)
         if not show_inactive:
@@ -139,6 +151,12 @@ class JobRepository:
                 Job.company.ilike(f"%{search_text}%"),
                 Job.location.ilike(f"%{search_text}%"),
             ))
+        if title_include:
+            for kw in title_include:
+                q = q.filter(Job.title.ilike(f"%{kw}%"))
+        if title_exclude:
+            for kw in title_exclude:
+                q = q.filter(~Job.title.ilike(f"%{kw}%"))
         if fresh_only:
             from datetime import timedelta
             cutoff = date.today() - timedelta(days=3)
@@ -397,6 +415,7 @@ class JobRepository:
                 company.company_type = company_type
             if what_they_do is not None:
                 company.what_they_do = what_they_do
+            company.enriched_at = datetime.utcnow()
         else:
             company = Company(
                 name_normalized=name_normalized,
@@ -404,11 +423,21 @@ class JobRepository:
                 sector=sector,
                 company_type=company_type,
                 what_they_do=what_they_do,
+                enriched_at=datetime.utcnow(),
             )
             self.session.add(company)
         self.session.commit()
         self.session.refresh(company)
         return company
+
+    def get_companies_for_reenrichment(self, limit: int = 20) -> list[Company]:
+        """Return Company records ordered by enriched_at ascending (NULLs first), up to limit."""
+        return (
+            self.session.query(Company)
+            .order_by(Company.enriched_at.asc().nullsfirst())
+            .limit(limit)
+            .all()
+        )
 
     # --- Profile ---
 
@@ -426,7 +455,7 @@ class JobRepository:
             self.session.refresh(profile)
         return profile
 
-    def upsert_profile(self, **kwargs) -> Profile:
+    def upsert_profile(self, experiences=None, educations=None, **kwargs) -> Profile:
         profile = self.session.query(Profile).first()
         if profile:
             for k, v in kwargs.items():
@@ -434,6 +463,15 @@ class JobRepository:
         else:
             profile = Profile(**kwargs)
             self.session.add(profile)
+            self.session.flush()
+        if experiences is not None:
+            self.session.query(ProfileExperience).filter(ProfileExperience.profile_id == profile.id).delete()
+            for i, exp in enumerate(experiences):
+                self.session.add(ProfileExperience(profile_id=profile.id, display_order=i, **exp))
+        if educations is not None:
+            self.session.query(ProfileEducation).filter(ProfileEducation.profile_id == profile.id).delete()
+            for i, edu in enumerate(educations):
+                self.session.add(ProfileEducation(profile_id=profile.id, display_order=i, **edu))
         self.session.commit()
         self.session.refresh(profile)
         return profile
@@ -536,36 +574,155 @@ class JobRepository:
             return []
         return self.session.query(Job).filter(Job.id.in_(job_ids)).all()
 
-    def list_unread_notifications_with_jobs(self) -> list[tuple[Notification, Job, WatchRule]]:
+    def list_unread_notifications_with_jobs(self):
         return (
             self.session.query(Notification, Job, WatchRule)
             .join(Job, Notification.job_id == Job.id)
-            .join(WatchRule, Notification.watch_rule_id == WatchRule.id)
+            .outerjoin(WatchRule, Notification.watch_rule_id == WatchRule.id)
             .filter(Notification.is_read == False)  # noqa: E712
             .order_by(Notification.created_at.desc())
             .all()
         )
 
-    def list_all_notifications_with_jobs(self, limit: int = 200) -> list[tuple[Notification, Job, WatchRule]]:
+    def list_all_notifications_with_jobs(self, limit: int = 200):
         return (
             self.session.query(Notification, Job, WatchRule)
             .join(Job, Notification.job_id == Job.id)
-            .join(WatchRule, Notification.watch_rule_id == WatchRule.id)
+            .outerjoin(WatchRule, Notification.watch_rule_id == WatchRule.id)
             .order_by(Notification.created_at.desc())
             .limit(limit)
             .all()
         )
 
+    # --- Interviews ---
+
+    def list_interviews_for_job(self, job_id: int) -> list[Interview]:
+        return (
+            self.session.query(Interview)
+            .filter(Interview.job_id == job_id)
+            .order_by(Interview.scheduled_at.asc())
+            .all()
+        )
+
+    def get_interview(self, interview_id: int) -> Optional[Interview]:
+        return self.session.get(Interview, interview_id)
+
+    def create_interview(self, job_id: int, scheduled_at, interview_type, medium, location=None, notes=None) -> Interview:
+        interview = Interview(
+            job_id=job_id,
+            scheduled_at=scheduled_at,
+            interview_type=interview_type,
+            medium=medium,
+            location=location,
+            notes=notes,
+        )
+        self.session.add(interview)
+        self.session.commit()
+        self.session.refresh(interview)
+        return interview
+
+    def update_interview(self, interview_id: int, **kwargs) -> Optional[Interview]:
+        interview = self.session.get(Interview, interview_id)
+        if interview:
+            for k, v in kwargs.items():
+                if v is not None or k in ('location', 'notes'):
+                    setattr(interview, k, v)
+            self.session.commit()
+            self.session.refresh(interview)
+        return interview
+
+    def delete_interview(self, interview_id: int) -> bool:
+        interview = self.session.get(Interview, interview_id)
+        if interview:
+            # Mark open reminders as read so the badge clears
+            self.session.query(Notification).filter(
+                Notification.interview_id == interview_id,
+                Notification.is_read == False,  # noqa: E712
+            ).update({"is_read": True})
+            self.session.delete(interview)
+            self.session.commit()
+            return True
+        return False
+
+    def list_jobs_for_tracker(self):
+        """Return list of (Job, next_upcoming_Interview|None) for all tracker statuses.
+
+        Rejected jobs are only included when they have at least one interview on record.
+        """
+        from datetime import datetime
+        from sqlalchemy import exists
+        TRACKER_STATUSES = [
+            JobStatus.SAVED, JobStatus.APPLIED, JobStatus.INTERVIEWING,
+            JobStatus.OFFER,
+        ]
+        active_jobs = (
+            self.session.query(Job)
+            .filter(Job.status.in_(TRACKER_STATUSES))
+            .order_by(Job.scraped_at.desc())
+            .all()
+        )
+        rejected_with_interviews = (
+            self.session.query(Job)
+            .filter(
+                Job.status == JobStatus.REJECTED,
+                exists().where(Interview.job_id == Job.id),
+            )
+            .order_by(Job.scraped_at.desc())
+            .all()
+        )
+        jobs = active_jobs + rejected_with_interviews
+        if not jobs:
+            return []
+        now = datetime.utcnow()
+        job_ids = [j.id for j in jobs]
+        upcoming = (
+            self.session.query(Interview)
+            .filter(Interview.job_id.in_(job_ids), Interview.scheduled_at > now)
+            .order_by(Interview.scheduled_at.asc())
+            .all()
+        )
+        next_by_job: dict[int, Interview] = {}
+        for iv in upcoming:
+            if iv.job_id not in next_by_job:
+                next_by_job[iv.job_id] = iv
+        return [(job, next_by_job.get(job.id)) for job in jobs]
+
+    def interview_reminder_exists(self, interview_id: int, kind: str) -> bool:
+        return (
+            self.session.query(Notification)
+            .filter(
+                Notification.interview_id == interview_id,
+                Notification.kind == kind,
+            )
+            .first()
+        ) is not None
+
     # --- ScrapeLog ---
 
-    def create_scrape_log(self, config_id: Optional[int] = None) -> ScrapeLog:
-        log = ScrapeLog(started_at=datetime.now(timezone.utc), status="running", config_id=config_id)
+    def create_scrape_log(self, config_id: Optional[int] = None, trigger: Optional[str] = None) -> ScrapeLog:
+        log = ScrapeLog(started_at=datetime.now(timezone.utc), status="running", config_id=config_id, trigger=trigger)
         self.session.add(log)
         self.session.commit()
         self.session.refresh(log)
         return log
 
-    def finish_scrape_log(self, log_id: int, jobs_found: int, jobs_new: int, error: Optional[str] = None) -> None:
+    def finish_scrape_log(
+        self,
+        log_id: int,
+        jobs_found: int,
+        jobs_new: int,
+        error: Optional[str] = None,
+        linkedin_count: Optional[int] = None,
+        indeed_count: Optional[int] = None,
+        glassdoor_count: Optional[int] = None,
+        comeet_count: Optional[int] = None,
+        filter_blocked: Optional[int] = None,
+        filter_keywords: Optional[int] = None,
+        filter_salary: Optional[int] = None,
+        filter_remote: Optional[int] = None,
+        jobs_scored: Optional[int] = None,
+        score_failed: Optional[int] = None,
+    ) -> None:
         log = self.session.get(ScrapeLog, log_id)
         if log:
             log.finished_at = datetime.now(timezone.utc)
@@ -573,6 +730,16 @@ class JobRepository:
             log.jobs_new = jobs_new
             log.status = "error" if error else "success"
             log.error = error
+            log.linkedin_count = linkedin_count
+            log.indeed_count = indeed_count
+            log.glassdoor_count = glassdoor_count
+            log.comeet_count = comeet_count
+            log.filter_blocked = filter_blocked
+            log.filter_keywords = filter_keywords
+            log.filter_salary = filter_salary
+            log.filter_remote = filter_remote
+            log.jobs_scored = jobs_scored
+            log.score_failed = score_failed
             self.session.commit()
 
     def list_scrape_logs(self, limit: int = 20) -> list[ScrapeLog]:
@@ -582,6 +749,12 @@ class JobRepository:
             .limit(limit)
             .all()
         )
+
+    def list_scrape_logs_paginated(self, page: int = 1, page_size: int = 25) -> tuple[list[ScrapeLog], int]:
+        q = self.session.query(ScrapeLog).order_by(ScrapeLog.started_at.desc())
+        total = q.count()
+        items = q.offset((page - 1) * page_size).limit(page_size).all()
+        return items, total
 
     def get_latest_scrape_log(self) -> Optional[ScrapeLog]:
         return (
@@ -767,3 +940,93 @@ class JobRepository:
             .limit(limit)
             .all()
         )
+
+    # --- Uploaded CV ---
+
+    def save_uploaded_cv(self, file_path: str, original_filename: str, parsed_json: str) -> UploadedCV:
+        record = UploadedCV(file_path=file_path, original_filename=original_filename, parsed_json=parsed_json)
+        self.session.add(record)
+        self.session.commit()
+        self.session.refresh(record)
+        return record
+
+    def get_latest_uploaded_cv(self) -> Optional[UploadedCV]:
+        return (
+            self.session.query(UploadedCV)
+            .order_by(UploadedCV.uploaded_at.desc())
+            .first()
+        )
+
+    def get_all_uploaded_cvs(self) -> list[UploadedCV]:
+        return (
+            self.session.query(UploadedCV)
+            .order_by(UploadedCV.uploaded_at.asc())
+            .all()
+        )
+
+    def get_uploaded_cv_by_id(self, record_id: int) -> Optional[UploadedCV]:
+        return self.session.get(UploadedCV, record_id)
+
+    def delete_all_uploaded_cvs(self) -> int:
+        records = self.session.query(UploadedCV).all()
+        count = len(records)
+        for record in records:
+            self.session.delete(record)
+        self.session.commit()
+        return count
+
+    def delete_uploaded_cv_by_id(self, record_id: int) -> bool:
+        record = self.session.get(UploadedCV, record_id)
+        if record:
+            self.session.delete(record)
+            self.session.commit()
+            return True
+        return False
+
+    # --- Tailored CV ---
+
+    def get_tailored_cv(self, job_id: int) -> Optional[TailoredCV]:
+        return self.session.query(TailoredCV).filter(TailoredCV.job_id == job_id).first()
+
+    def upsert_tailored_cv(
+        self,
+        job_id: int,
+        cv_json: str,
+        pdf_path: Optional[str],
+        docx_path: Optional[str],
+        model_used: Optional[str],
+    ) -> TailoredCV:
+        record = self.session.query(TailoredCV).filter(TailoredCV.job_id == job_id).first()
+        if record:
+            record.cv_json = cv_json
+            record.pdf_path = pdf_path
+            record.docx_path = docx_path
+            record.model_used = model_used
+            record.generated_at = datetime.now(timezone.utc)
+        else:
+            record = TailoredCV(
+                job_id=job_id,
+                cv_json=cv_json,
+                pdf_path=pdf_path,
+                docx_path=docx_path,
+                model_used=model_used,
+            )
+            self.session.add(record)
+        self.session.commit()
+        self.session.refresh(record)
+        return record
+
+    def delete_tailored_cv(self, job_id: int) -> bool:
+        record = self.session.query(TailoredCV).filter(TailoredCV.job_id == job_id).first()
+        if not record:
+            return False
+        import os
+        for path in (record.pdf_path, record.docx_path):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
+        self.session.delete(record)
+        self.session.commit()
+        return True

@@ -4,9 +4,20 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Input from '../components/ui/Input'
-import { useRejectRules, useCreateRejectRule, useToggleRejectRule, useDeleteRejectRule } from '../api/queries'
+import {
+  useRejectRules,
+  useCreateRejectRule,
+  useToggleRejectRule,
+  useDeleteRejectRule,
+  usePropertyValues,
+  useRejectLocations,
+} from '../api/queries'
 
 const RULE_TYPES = ['title_keyword', 'location', 'property'] as const
+const SUPPORTED_PROPERTIES = ['company', 'source', 'sector', 'company_type'] as const
+
+const SELECT_CLS =
+  'px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20'
 
 export default function RejectRules() {
   const { data: rules = [], isLoading } = useRejectRules()
@@ -16,14 +27,31 @@ export default function RejectRules() {
 
   const [type, setType] = useState<string>('title_keyword')
   const [value, setValue] = useState('')
-  const [propName, setPropName] = useState('')
+  const [propName, setPropName] = useState<string>('company')
+
+  const { data: locations = [] } = useRejectLocations()
+  const { data: propertyValues = [] } = usePropertyValues(type === 'property' ? propName : '')
+
+  const rulesList = rules as any[]
+  const existingLocations = new Set(
+    rulesList.filter((r) => r.rule_type === 'location').map((r) => r.value),
+  )
+  const existingPropertyValues = new Set(
+    rulesList
+      .filter((r) => r.rule_type === 'property' && r.property_name === propName)
+      .map((r) => r.value),
+  )
+
+  const availableLocations = (locations as string[]).filter((v) => !existingLocations.has(v))
+  const availablePropertyValues = (propertyValues as string[]).filter(
+    (v) => !existingPropertyValues.has(v),
+  )
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!value.trim()) return
     await create.mutateAsync({ rule_type: type, value, property_name: type === 'property' ? propName : undefined })
     setValue('')
-    setPropName('')
   }
 
   return (
@@ -38,8 +66,11 @@ export default function RejectRules() {
                 <label className="text-[11px] font-bold uppercase tracking-wider text-outline block mb-1.5">Type</label>
                 <select
                   value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className="px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  onChange={(e) => {
+                    setType(e.target.value)
+                    setValue('')
+                  }}
+                  className={SELECT_CLS}
                 >
                   {RULE_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
@@ -47,22 +78,45 @@ export default function RejectRules() {
                 </select>
               </div>
               {type === 'property' && (
-                <div className="flex-1">
-                  <Input
-                    label="Property Name"
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-outline block mb-1.5">Property Name</label>
+                  <select
                     value={propName}
-                    onChange={(e) => setPropName(e.target.value)}
-                    placeholder="e.g. work_type"
-                  />
+                    onChange={(e) => {
+                      setPropName(e.target.value)
+                      setValue('')
+                    }}
+                    className={SELECT_CLS}
+                  >
+                    {SUPPORTED_PROPERTIES.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
                 </div>
               )}
               <div className="flex-1">
-                <Input
-                  label="Value"
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  placeholder="e.g. intern, contract"
-                />
+                {type === 'title_keyword' ? (
+                  <Input
+                    label="Value"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder="e.g. intern, contract"
+                  />
+                ) : (
+                  <>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-outline block mb-1.5">Value</label>
+                    <select
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      className={`${SELECT_CLS} w-full`}
+                    >
+                      <option value="">— select —</option>
+                      {(type === 'location' ? availableLocations : availablePropertyValues).map((v) => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
               </div>
               <div className="flex items-end">
                 <Button type="submit" loading={create.isPending} icon="add">Add</Button>

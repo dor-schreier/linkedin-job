@@ -13,6 +13,7 @@ _scrape_lock = threading.Lock()
 
 JOB_ID = "scheduled_scrape"
 CLEANUP_JOB_ID = "scheduled_cleanup"
+REMINDERS_JOB_ID = "interview_reminders"
 
 
 def get_scheduler() -> AsyncIOScheduler:
@@ -50,7 +51,7 @@ def _run_scheduled_scrape() -> None:
 
             with SessionLocal() as session:
                 repo = JobRepository(session)
-                log = repo.create_scrape_log(config_id=config.id)
+                log = repo.create_scrape_log(config_id=config.id, trigger="scheduled")
                 log_id = log.id
 
             logger.info(
@@ -66,10 +67,21 @@ def _run_scheduled_scrape() -> None:
                     repo.finish_scrape_log(log_id, jobs_found=0, jobs_new=0, error=result["error"])
                     logger.error("Scheduled scrape config %d failed: %s", config.id, result["error"])
                 else:
+                    _fs = result.get("fetch_sources") or {}
                     repo.finish_scrape_log(
                         log_id,
                         jobs_found=result.get("total_scraped", 0),
                         jobs_new=result.get("inserted", 0),
+                        linkedin_count=_fs.get("linkedin"),
+                        indeed_count=_fs.get("indeed"),
+                        glassdoor_count=_fs.get("glassdoor"),
+                        comeet_count=result.get("comeet_parsed"),
+                        filter_blocked=result.get("filter_blocked_companies"),
+                        filter_keywords=result.get("filter_exclude_keywords"),
+                        filter_salary=result.get("filter_min_salary"),
+                        filter_remote=result.get("remote_filtered"),
+                        jobs_scored=result.get("scored"),
+                        score_failed=result.get("score_failed"),
                     )
                     logger.info(
                         "Scheduled scrape config %d done: found=%d new=%d",
@@ -93,6 +105,17 @@ def _run_scheduled_cleanup() -> None:
     _run_cleanup_task()
 
 
+def _run_interview_reminders() -> None:
+    """Called hourly by APScheduler — enqueues due interview reminder notifications."""
+    try:
+        from app.database import SessionLocal
+        from app.services.interview_reminders import enqueue_due_reminders
+        with SessionLocal() as session:
+            enqueue_due_reminders(session)
+    except Exception as e:
+        logger.error("Interview reminders error: %s", e, exc_info=True)
+
+
 def start_scheduler(interval_hours: int = 6) -> None:
     scheduler = get_scheduler()
     if scheduler.running:
@@ -108,6 +131,13 @@ def start_scheduler(interval_hours: int = 6) -> None:
         _run_scheduled_cleanup,
         trigger=IntervalTrigger(hours=24),
         id=CLEANUP_JOB_ID,
+        replace_existing=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        _run_interview_reminders,
+        trigger=IntervalTrigger(hours=1),
+        id=REMINDERS_JOB_ID,
         replace_existing=True,
         max_instances=1,
     )

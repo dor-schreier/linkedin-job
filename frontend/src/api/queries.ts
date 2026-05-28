@@ -58,11 +58,30 @@ export function useSchedulerConfig() {
   })
 }
 
+export function useReenrichCompanies() {
+  return useMutation({
+    mutationFn: (limit = 20) =>
+      apiFetch('/api/companies/re-enrich', {
+        method: 'POST',
+        body: JSON.stringify({ limit }),
+      }) as Promise<{ enriched: number; failed: number }>,
+  })
+}
+
 export function useCleanupRunNow() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => apiFetch('/api/cleanup/run', { method: 'POST' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['scheduler'] }),
+  })
+}
+
+// ── Scrape History ───────────────────────────────────────────────────────────
+
+export function useHistory(page: number = 1, pageSize: number = 25) {
+  return useQuery({
+    queryKey: ['scrape-history', page, pageSize],
+    queryFn: () => apiFetch(`/api/scrape/history?page=${page}&page_size=${pageSize}`),
   })
 }
 
@@ -127,6 +146,13 @@ export function usePropertyValues(property: string) {
         (d) => d?.values ?? []
       ),
     enabled: !!property,
+  })
+}
+
+export function useRejectLocations() {
+  return useQuery({
+    queryKey: ['reject-rules', 'locations'],
+    queryFn: () => apiFetch('/api/reject-rules/locations').then((d) => d?.values ?? []),
   })
 }
 
@@ -257,6 +283,26 @@ export function useProfile() {
   })
 }
 
+export type ProfileExperienceItem = {
+  title?: string
+  company?: string
+  location?: string
+  start_date?: string
+  end_date?: string
+  is_current?: boolean
+  description?: string
+}
+
+export type ProfileEducationItem = {
+  school?: string
+  degree?: string
+  field_of_study?: string
+  start_year?: number
+  end_year?: number
+  grade?: string
+  description?: string
+}
+
 export function useSaveProfile() {
   const qc = useQueryClient()
   return useMutation({
@@ -266,6 +312,8 @@ export function useSaveProfile() {
       current_title: string
       target_title: string
       years_experience?: number
+      experiences?: ProfileExperienceItem[]
+      educations?: ProfileEducationItem[]
     }) => apiFetch('/api/profile', { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
   })
@@ -283,6 +331,54 @@ export function useKeywordGaps() {
   return useQuery({
     queryKey: ['profile', 'keyword-gaps'],
     queryFn: () => apiFetch('/api/profile/keyword-gaps'),
+  })
+}
+
+export function useUploadedCvStatus() {
+  return useQuery({
+    queryKey: ['profile', 'cv-upload'],
+    queryFn: () => apiFetch('/api/profile/cv-upload'),
+  })
+}
+
+export function useUploadCv() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (files: File[]) => {
+      const form = new FormData()
+      for (const file of files) {
+        form.append('files', file)
+      }
+      const res = await fetch('/api/profile/cv-upload', { method: 'POST', body: form })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.detail ?? `Upload failed: ${res.status}`)
+      }
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile', 'cv-upload'] }),
+  })
+}
+
+export function useDeleteUploadedCv() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiFetch('/api/profile/cv-upload', { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile', 'cv-upload'] }),
+  })
+}
+
+export function useDeleteUploadedCvById() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiFetch(`/api/profile/cv-upload/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile', 'cv-upload'] }),
+  })
+}
+
+export function useExtractFromUploadedCv() {
+  return useMutation({
+    mutationFn: () => apiFetch('/api/profile/cv-extract', { method: 'POST' }),
   })
 }
 
@@ -305,6 +401,107 @@ export function useProfileOptimizerAnalyze() {
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
+
+// ── Application Tracker ───────────────────────────────────────────────────────
+
+export function useApplications() {
+  return useQuery({
+    queryKey: ['applications'],
+    queryFn: () => apiFetch('/api/jobs/tracker'),
+  })
+}
+
+export function useUpdateJobStatus() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, status }: { jobId: number; status: string }) =>
+      apiFetch(`/api/jobs/${jobId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['applications'] })
+      qc.invalidateQueries({ queryKey: ['jobs'] })
+    },
+  })
+}
+
+export function useJobInterviews(jobId: number) {
+  return useQuery({
+    queryKey: ['interviews', jobId],
+    queryFn: () => apiFetch(`/api/jobs/${jobId}/interviews`),
+    enabled: jobId > 0,
+  })
+}
+
+export function useCreateInterview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      body,
+    }: {
+      jobId: number
+      body: {
+        scheduled_at: string
+        interview_type: string
+        medium: string
+        location?: string
+        notes?: string
+      }
+    }) =>
+      apiFetch(`/api/jobs/${jobId}/interviews`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['applications'] })
+      qc.invalidateQueries({ queryKey: ['interviews', variables.jobId] })
+    },
+  })
+}
+
+export function useUpdateInterview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      interviewId,
+      jobId,
+      body,
+    }: {
+      interviewId: number
+      jobId: number
+      body: {
+        scheduled_at?: string
+        interview_type?: string
+        medium?: string
+        location?: string
+        notes?: string
+      }
+    }) =>
+      apiFetch(`/api/interviews/${interviewId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['applications'] })
+      qc.invalidateQueries({ queryKey: ['interviews', variables.jobId] })
+    },
+  })
+}
+
+export function useDeleteInterview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ interviewId, jobId }: { interviewId: number; jobId: number }) =>
+      apiFetch(`/api/interviews/${interviewId}`, { method: 'DELETE' }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['applications'] })
+      qc.invalidateQueries({ queryKey: ['interviews', variables.jobId] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
 
 export function useUnreadCount() {
   return useQuery({

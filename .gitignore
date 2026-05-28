@@ -1,6 +1,7 @@
 data/jobs.db
 data/jobs.db-wal
 data/jobs.db-shm
+data/uploads/
 .env
 __pycache__/
 *.pyc

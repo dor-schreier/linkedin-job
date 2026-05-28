@@ -5,6 +5,8 @@ import Layout from '../components/Layout'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
+import InterviewModal, { type InterviewData, type InterviewModalState } from '../components/InterviewModal'
+import { useJobInterviews } from '../api/queries'
 import client from '../api/client'
 
 function useJob(id: number) {
@@ -49,6 +51,21 @@ function useReextract(id: number) {
   })
 }
 
+function useRefreshJob(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/jobs/${id}/refresh`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.detail || `Failed: ${res.status}`)
+      }
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs', id] }),
+  })
+}
+
 function useRateJob(id: number) {
   const qc = useQueryClient()
   return useMutation({
@@ -62,6 +79,63 @@ function useRateJob(id: number) {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs', id] }),
   })
+}
+
+type TailoredCV = {
+  job_id: number
+  generated_at: string
+  pdf_url: string
+  docx_url: string
+  model_used?: string | null
+  cv: unknown
+}
+
+function useTailoredCv(id: number) {
+  return useQuery<TailoredCV | null>({
+    queryKey: ['tailored-cv', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/jobs/${id}/cv`)
+      if (res.status === 404) return null
+      if (!res.ok) throw new Error(`Failed: ${res.status}`)
+      return res.json()
+    },
+    enabled: id > 0,
+  })
+}
+
+function useGenerateTailoredCv(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/jobs/${id}/cv/generate`, { method: 'POST' })
+      if (!res.ok) {
+        let detail = `Failed: ${res.status}`
+        try {
+          const body = await res.json()
+          if (body?.detail) detail = body.detail
+        } catch {
+          // ignore
+        }
+        const err = new Error(detail) as Error & { status?: number }
+        err.status = res.status
+        throw err
+      }
+      return res.json() as Promise<TailoredCV>
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tailored-cv', id] }),
+  })
+}
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime()
+  const diff = Math.max(0, Date.now() - then)
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'just now'
+  if (min < 60) return `${min} min ago`
+  const hrs = Math.floor(min / 60)
+  if (hrs < 24) return `${hrs} hr ago`
+  const days = Math.floor(hrs / 24)
+  return `${days} day${days === 1 ? '' : 's'} ago`
 }
 
 function useUpdateStatus(id: number) {
@@ -115,9 +189,14 @@ export default function JobDetail() {
   const { data, isLoading, error } = useJob(jobId)
   const score = useScoreJob(jobId)
   const reextract = useReextract(jobId)
+  const refresh = useRefreshJob(jobId)
   const rate = useRateJob(jobId)
   const updateStatus = useUpdateStatus(jobId)
+  const tailored = useTailoredCv(jobId)
+  const generateTailored = useGenerateTailoredCv(jobId)
   const [activeTab, setActiveTab] = useState<'overview' | 'intelligence' | 'score' | 'description'>('overview')
+  const [ivModal, setIvModal] = useState<InterviewModalState>(null)
+  const { data: interviews } = useJobInterviews(jobId)
 
   const job = data as any
 
@@ -262,7 +341,7 @@ export default function JobDetail() {
                 <p className="text-sm text-on-surface-variant leading-relaxed">{job.company_summary}</p>
               </Card>
             )}
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
               <Button
                 variant="secondary"
                 icon="auto_awesome"
@@ -274,17 +353,91 @@ export default function JobDetail() {
               <Button
                 variant="secondary"
                 icon="psychology"
-                onClick={() => reextract.mutate()}
+                onClick={() => reextract.mutate(undefined, { onSuccess: () => setActiveTab('intelligence') })}
                 loading={reextract.isPending}
               >
                 {intel ? 'Re-extract' : 'Extract Intelligence'}
               </Button>
+              <Button
+                variant="secondary"
+                icon="refresh"
+                onClick={() => refresh.mutate()}
+                loading={refresh.isPending}
+                title="Re-fetch description from job URL, then re-extract and re-score"
+              >
+                Refresh Job
+              </Button>
             </div>
-            {(score.isError || reextract.isError) && (
+            {(score.isError || reextract.isError || refresh.isError) && (
               <p className="text-xs text-error">
-                {((score.error || reextract.error) as Error)?.message}
+                {((score.error || reextract.error || refresh.error) as Error)?.message}
               </p>
             )}
+
+            <Card title="Tailored CV">
+              {tailored.isLoading ? (
+                <p className="text-sm text-on-surface-variant">Loading…</p>
+              ) : tailored.data ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-on-surface-variant">
+                    Generated {relativeTime(tailored.data.generated_at)}
+                    {tailored.data.model_used ? ` · ${tailored.data.model_used}` : ''}
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <a
+                      href={tailored.data.pdf_url}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-bold hover:opacity-90 transition-opacity"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>picture_as_pdf</span>
+                      Download PDF
+                    </a>
+                    <a
+                      href={tailored.data.docx_url}
+                      className="flex items-center gap-2 px-4 py-2 bg-surface-container text-on-surface rounded-lg text-sm font-bold hover:opacity-90 transition-opacity"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>description</span>
+                      Download DOCX
+                    </a>
+                    <Button
+                      variant="ghost"
+                      icon="refresh"
+                      onClick={() => generateTailored.mutate()}
+                      loading={generateTailored.isPending}
+                    >
+                      Regenerate
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-on-surface-variant">
+                    Generate a CV tailored to this job's requirements (PDF + DOCX).
+                  </p>
+                  <Button
+                    icon="description"
+                    onClick={() => generateTailored.mutate()}
+                    loading={generateTailored.isPending}
+                  >
+                    Generate Tailored CV
+                  </Button>
+                </div>
+              )}
+              {generateTailored.isError && (
+                <div className="mt-3">
+                  <p className="text-xs text-error">
+                    {(generateTailored.error as Error)?.message}
+                  </p>
+                  {(generateTailored.error as Error & { status?: number })?.status === 422 && (
+                    <button
+                      onClick={() => navigate('/profile')}
+                      className="text-xs text-primary underline mt-1"
+                    >
+                      Go to Profile page
+                    </button>
+                  )}
+                </div>
+              )}
+            </Card>
           </div>
         )}
 
@@ -404,8 +557,144 @@ export default function JobDetail() {
             )}
           </Card>
         )}
+
+        {/* Interviews section — always visible */}
+        <InterviewsSection
+          jobId={jobId}
+          appliedAt={job.applied_at}
+          interviews={(interviews as InterviewData[]) ?? []}
+          onOpenModal={(state) => setIvModal(state)}
+        />
       </div>
+
+      {ivModal && <InterviewModal state={ivModal} onClose={() => setIvModal(null)} />}
     </Layout>
+  )
+}
+
+const IV_TYPE_LABELS: Record<string, string> = {
+  first_hr: 'First HR', initial: 'Initial', technical: 'Technical', final_hr: 'Final HR',
+}
+const MEDIUM_ICONS: Record<string, string> = {
+  phone: 'call', zoom: 'videocam', in_person: 'location_on',
+}
+
+function relTimeFromNow(iso: string): string {
+  const diff = new Date(iso).getTime() - Date.now()
+  const absDiff = Math.abs(diff)
+  const isPast = diff < 0
+  const mins = Math.floor(absDiff / 60000)
+  if (mins < 60) return isPast ? `${mins}m ago` : `in ${mins}m`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return isPast ? `${hrs}h ago` : `in ${hrs}h`
+  const days = Math.floor(hrs / 24)
+  return isPast ? `${days} day${days === 1 ? '' : 's'} ago` : `in ${days} day${days === 1 ? '' : 's'}`
+}
+
+function InterviewsSection({
+  jobId,
+  appliedAt,
+  interviews,
+  onOpenModal,
+}: {
+  jobId: number
+  appliedAt?: string | null
+  interviews: InterviewData[]
+  onOpenModal: (state: InterviewModalState) => void
+}) {
+  const now = new Date()
+  const upcoming = interviews.filter(iv => new Date(iv.scheduled_at) > now)
+  const past = interviews.filter(iv => new Date(iv.scheduled_at) <= now)
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-bold font-headline">Interviews</h3>
+        <button
+          onClick={() => onOpenModal({ mode: 'create', jobId })}
+          className="flex items-center gap-1 text-xs text-primary hover:underline"
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
+          Schedule interview
+        </button>
+      </div>
+      {appliedAt && (
+        <p className="text-xs text-on-surface-variant mb-4">
+          Applied on {new Date(appliedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}{' '}
+          <span className="text-outline">({relTimeFromNow(appliedAt)})</span>
+        </p>
+      )}
+
+      {interviews.length === 0 ? (
+        <p className="text-sm text-on-surface-variant">No interviews scheduled yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {upcoming.length > 0 && (
+            <div>
+              <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Upcoming</p>
+              <div className="space-y-2">
+                {upcoming.map(iv => (
+                  <InterviewRow key={iv.id} iv={iv} jobId={jobId} onOpenModal={onOpenModal} />
+                ))}
+              </div>
+            </div>
+          )}
+          {past.length > 0 && (
+            <div>
+              <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Past</p>
+              <div className="space-y-2">
+                {[...past].reverse().map(iv => (
+                  <InterviewRow key={iv.id} iv={iv} jobId={jobId} onOpenModal={onOpenModal} isPast />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function InterviewRow({
+  iv,
+  jobId,
+  onOpenModal,
+  isPast = false,
+}: {
+  iv: InterviewData
+  jobId: number
+  onOpenModal: (state: InterviewModalState) => void
+  isPast?: boolean
+}) {
+  const dt = new Date(iv.scheduled_at)
+  const absDate = dt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
+  return (
+    <div className={`flex items-start gap-3 p-3 rounded-lg border ${isPast ? 'border-outline-variant/30 opacity-60' : 'border-outline-variant/60 bg-surface-container-lowest'}`}>
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-bold text-primary tracking-wider">
+            {IV_TYPE_LABELS[iv.interview_type] ?? iv.interview_type}
+          </span>
+          <span className="text-xs text-on-surface-variant">·</span>
+          <span className="text-xs text-on-surface">{absDate}</span>
+          <span className="text-xs text-on-surface-variant">({relTimeFromNow(iv.scheduled_at)})</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{MEDIUM_ICONS[iv.medium] ?? 'event'}</span>
+          <span className="capitalize">{iv.medium.replace('_', ' ')}</span>
+          {iv.location && <><span>·</span><span className="truncate">{iv.location}</span></>}
+        </div>
+        {iv.notes && <p className="text-xs text-on-surface-variant italic truncate">{iv.notes}</p>}
+      </div>
+      <button
+        onClick={() => onOpenModal({ mode: 'edit', jobId, interview: iv })}
+        className="shrink-0 text-on-surface-variant hover:text-primary transition-colors"
+        title="Edit"
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
+      </button>
+    </div>
   )
 }
 

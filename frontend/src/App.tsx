@@ -7,24 +7,26 @@ import WatchMatches from './pages/WatchMatches'
 import Scrape from './pages/Scrape'
 import Profile from './pages/Profile'
 import ProfileOptimizer from './pages/ProfileOptimizer'
-import CvView from './pages/CvView'
 import JobDetail from './pages/JobDetail'
 import JobsList from './pages/JobsList'
+import History from './pages/History'
+import ApplicationTracker from './pages/ApplicationTracker'
 
 function App() {
   return (
     <BrowserRouter basename="/">
       <Routes>
         <Route path="/" element={<Navigate to="/jobs" replace />} />
+        <Route path="/applications" element={<ApplicationTracker />} />
         <Route path="/health" element={<Health />} />
         <Route path="/scheduler" element={<Scheduler />} />
+        <Route path="/history" element={<History />} />
         <Route path="/reject-rules" element={<RejectRules />} />
         <Route path="/watch-rules" element={<WatchRules />} />
         <Route path="/watch-matches" element={<WatchMatches />} />
         <Route path="/scrape" element={<Scrape />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/optimizer" element={<ProfileOptimizer />} />
-        <Route path="/cv" element={<CvView />} />
         <Route path="/jobs" element={<JobsList />} />
         <Route path="/jobs/:id" element={<JobDetail />} />
       </Routes>

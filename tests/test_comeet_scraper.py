@@ -305,6 +305,42 @@ class TestUrlToCompanySlug:
         assert _slug_to_company("google") == "Google"
 
 
+class TestComeetIdentity:
+    def test_returns_stable_identity(self):
+        from app.scrapers.comeet import _comeet_identity
+        url = "https://www.comeet.com/jobs/acme-corp/A1.234/senior-backend-engineer/abc123"
+        assert _comeet_identity(url) == "acme-corp/A1.234/abc123"
+
+    def test_different_title_slug_same_identity(self):
+        """Two URLs that differ only in title slug must produce the same identity."""
+        from app.scrapers.comeet import _comeet_identity
+        url1 = "https://www.comeet.com/jobs/acme-corp/A1.234/senior-backend-engineer/abc123"
+        url2 = "https://www.comeet.com/jobs/acme-corp/A1.234/SENIOR-BACKEND-ENGINEER-REVISED/abc123"
+        assert _comeet_identity(url1) == _comeet_identity(url2)
+
+    def test_different_position_code_different_identity(self):
+        from app.scrapers.comeet import _comeet_identity
+        url1 = "https://www.comeet.com/jobs/acme-corp/A1.234/engineer/abc123"
+        url2 = "https://www.comeet.com/jobs/acme-corp/B2.567/engineer/abc123"
+        assert _comeet_identity(url1) != _comeet_identity(url2)
+
+    def test_different_job_id_different_identity(self):
+        from app.scrapers.comeet import _comeet_identity
+        url1 = "https://www.comeet.com/jobs/acme-corp/A1.234/engineer/abc123"
+        url2 = "https://www.comeet.com/jobs/acme-corp/A1.234/engineer/xyz999"
+        assert _comeet_identity(url1) != _comeet_identity(url2)
+
+    def test_malformed_url_returns_none(self):
+        from app.scrapers.comeet import _comeet_identity
+        assert _comeet_identity("https://www.comeet.com/jobs/acme-corp/") is None
+        assert _comeet_identity("https://www.linkedin.com/jobs/1234") is None
+        assert _comeet_identity("not-a-url") is None
+
+    def test_no_dot_in_position_code_returns_none(self):
+        from app.scrapers.comeet import _comeet_identity
+        assert _comeet_identity("https://www.comeet.com/jobs/acme/nodot/engineer/abc") is None
+
+
 class TestStubSeams:
     def test_serpapi_raises_not_implemented(self):
         from app.scrapers.search_backends import SerpApiBackend

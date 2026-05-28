@@ -46,6 +46,24 @@ def _is_comeet_job_url(url: str) -> bool:
         return False
 
 
+def _comeet_identity(url: str) -> Optional[str]:
+    """Return a stable identity string for a Comeet job URL.
+
+    Parses `comeet.com/jobs/{company}/{position-code}/{title-slug}/{job-id}` and
+    returns `"{company}/{position-code}/{job-id}"` — the title slug is excluded
+    because LLM extraction may vary. Returns None if the URL doesn't match.
+    """
+    try:
+        parsed = urlparse(url)
+        parts = [p for p in parsed.path.split("/") if p]
+        if len(parts) == 5 and parts[0] == "jobs" and "." in parts[2]:
+            company_slug, position_code, job_id = parts[1], parts[2], parts[4]
+            return f"{company_slug}/{position_code}/{job_id}"
+    except Exception:
+        pass
+    return None
+
+
 def _slug_to_company(slug: str) -> str:
     """Convert URL slug (e.g. 'acme-corp') to display name ('Acme Corp')."""
     return " ".join(word.capitalize() for word in slug.replace("-", " ").split())

@@ -58,6 +58,8 @@ interface Filters {
   show_inactive: boolean
   include_rejected: boolean
   q: string
+  title_include: string[]
+  title_exclude: string[]
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -73,6 +75,8 @@ const DEFAULT_FILTERS: Filters = {
   show_inactive: false,
   include_rejected: false,
   q: '',
+  title_include: [],
+  title_exclude: [],
 }
 
 // ── Queries ───────────────────────────────────────────────────────────────────
@@ -91,6 +95,8 @@ function useJobs(filters: Filters, page: number) {
   if (filters.show_inactive) params.set('show_inactive', '1')
   if (filters.include_rejected) params.set('include_rejected', '1')
   if (filters.q) params.set('q', filters.q)
+  if (filters.title_include.length) params.set('title_include', filters.title_include.join(','))
+  if (filters.title_exclude.length) params.set('title_exclude', filters.title_exclude.join(','))
   params.set('page', String(page))
 
   return useQuery({
@@ -284,6 +290,100 @@ function MultiSelectDropdown({
   )
 }
 
+function TitleFiltersInput({
+  include,
+  exclude,
+  onChange,
+}: {
+  include: string[]
+  exclude: string[]
+  onChange: (include: string[], exclude: string[]) => void
+}) {
+  const [text, setText] = useState('')
+  const [mode, setMode] = useState<'include' | 'exclude'>('include')
+
+  function add() {
+    const kw = text.trim()
+    if (!kw) return
+    if (mode === 'include') {
+      if (!include.includes(kw)) onChange([...include, kw], exclude)
+    } else {
+      if (!exclude.includes(kw)) onChange(include, [...exclude, kw])
+    }
+    setText('')
+  }
+
+  function removeInclude(kw: string) {
+    onChange(include.filter((k) => k !== kw), exclude)
+  }
+  function removeExclude(kw: string) {
+    onChange(include, exclude.filter((k) => k !== kw))
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center bg-surface-container-low rounded-lg overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setMode('include')}
+          className={`px-2.5 py-2 text-xs font-bold transition-colors ${
+            mode === 'include' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'
+          }`}
+        >
+          Include
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('exclude')}
+          className={`px-2.5 py-2 text-xs font-bold transition-colors ${
+            mode === 'exclude' ? 'bg-error text-on-error' : 'text-on-surface-variant hover:text-on-surface'
+          }`}
+        >
+          Exclude
+        </button>
+        <input
+          type="text"
+          placeholder="title keyword…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
+          className="px-2 py-2 bg-surface-container-low border-none text-sm text-on-surface placeholder:text-outline focus:outline-none w-44"
+        />
+        <button
+          type="button"
+          onClick={add}
+          disabled={!text.trim()}
+          className="px-3 py-2 text-xs font-bold text-on-surface-variant hover:text-on-surface disabled:opacity-40"
+        >
+          Add
+        </button>
+      </div>
+      {(include.length > 0 || exclude.length > 0) && (
+        <div className="flex flex-wrap gap-1.5">
+          {include.map((kw) => (
+            <span key={`i-${kw}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-primary/15 text-primary">
+              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>add</span>
+              {kw}
+              <button onClick={() => removeInclude(kw)} className="hover:text-error">
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+              </button>
+            </span>
+          ))}
+          {exclude.map((kw) => (
+            <span key={`e-${kw}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-error/15 text-error">
+              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>remove</span>
+              {kw}
+              <button onClick={() => removeExclude(kw)} className="hover:text-on-surface">
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'All Statuses' },
   { value: 'new', label: 'NEW' },
@@ -297,6 +397,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
 const SORT_OPTIONS = [
   { value: 'fit_desc', label: 'Best Fit First' },
   { value: 'freshest', label: 'Freshest First' },
+  { value: 'scraped_desc', label: 'Recently Scraped' },
   { value: 'date_posted_asc', label: 'Date Posted ↑' },
   { value: 'rating_desc', label: 'Top Rated' },
   { value: 'fit_asc', label: 'Worst Fit First' },
@@ -465,6 +566,15 @@ export default function JobsList() {
                 <option key={t} value={t}>{t || 'All Types'}</option>
               ))}
             </select>
+            <TitleFiltersInput
+              include={filters.title_include}
+              exclude={filters.title_exclude}
+              onChange={(inc, exc) => {
+                setFilters((f) => ({ ...f, title_include: inc, title_exclude: exc }))
+                setPage(1)
+                setSelectedIds(new Set())
+              }}
+            />
           </div>
           {/* Toggle filters */}
           <div className="flex flex-wrap gap-2 text-xs">

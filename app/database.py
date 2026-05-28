@@ -215,3 +215,119 @@ def init_db():
             conn.commit()
         except Exception:
             pass
+        # Uploaded CV migration
+        try:
+            conn.execute(text(
+                "CREATE TABLE IF NOT EXISTS uploaded_cvs ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "file_path TEXT NOT NULL, "
+                "original_filename TEXT NOT NULL, "
+                "parsed_json TEXT NOT NULL, "
+                "uploaded_at DATETIME DEFAULT (datetime('now')))"
+            ))
+            conn.commit()
+        except Exception:
+            pass
+        os.makedirs("data/uploads/cv", exist_ok=True)
+        # Tailored CV migration
+        try:
+            conn.execute(text(
+                "CREATE TABLE IF NOT EXISTS tailored_cvs ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "job_id INTEGER NOT NULL UNIQUE, "
+                "cv_json TEXT NOT NULL, "
+                "pdf_path TEXT, "
+                "docx_path TEXT, "
+                "model_used TEXT, "
+                "generated_at DATETIME DEFAULT (datetime('now')))"
+            ))
+            conn.commit()
+        except Exception:
+            pass
+        os.makedirs("data/uploads/tailored_cv", exist_ok=True)
+        # Interview tracker migrations
+        try:
+            conn.execute(text("ALTER TABLE jobs ADD COLUMN applied_at DATETIME"))
+            conn.commit()
+        except Exception:
+            pass
+        # Rebuild notifications table to support interview reminders (idempotent: check for 'kind' column)
+        try:
+            conn.execute(text("SELECT kind FROM notifications LIMIT 1"))
+            # Column already exists — just ensure interview_id and message exist
+            try:
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN interview_id INTEGER"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN message VARCHAR(300)"))
+                conn.commit()
+            except Exception:
+                pass
+        except Exception:
+            # Rebuild: make watch_rule_id nullable and add new columns
+            try:
+                conn.execute(text(
+                    "CREATE TABLE notifications_new ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    "job_id INTEGER NOT NULL, "
+                    "watch_rule_id INTEGER, "
+                    "is_read BOOLEAN DEFAULT 0, "
+                    "kind VARCHAR(30) NOT NULL DEFAULT 'watch_match', "
+                    "interview_id INTEGER, "
+                    "message VARCHAR(300), "
+                    "created_at DATETIME DEFAULT (datetime('now')))"
+                ))
+                conn.execute(text(
+                    "INSERT INTO notifications_new (id, job_id, watch_rule_id, is_read, created_at) "
+                    "SELECT id, job_id, watch_rule_id, is_read, created_at FROM notifications"
+                ))
+                conn.execute(text("DROP TABLE notifications"))
+                conn.execute(text("ALTER TABLE notifications_new RENAME TO notifications"))
+                conn.commit()
+            except Exception:
+                pass
+        try:
+            conn.execute(text(
+                "CREATE TABLE IF NOT EXISTS interviews ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE, "
+                "scheduled_at DATETIME NOT NULL, "
+                "interview_type VARCHAR(20) NOT NULL, "
+                "medium VARCHAR(20) NOT NULL, "
+                "location VARCHAR(500), "
+                "notes TEXT, "
+                "created_at DATETIME DEFAULT (datetime('now')))"
+            ))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_interviews_job_id ON interviews(job_id)"
+            ))
+            conn.commit()
+        except Exception:
+            pass
+        # Company enriched_at migration
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN enriched_at DATETIME"))
+            conn.commit()
+        except Exception:
+            pass
+        # ScrapeLog extended stats migration
+        for col in [
+            "ALTER TABLE scrape_logs ADD COLUMN trigger VARCHAR(20)",
+            "ALTER TABLE scrape_logs ADD COLUMN linkedin_count INTEGER",
+            "ALTER TABLE scrape_logs ADD COLUMN indeed_count INTEGER",
+            "ALTER TABLE scrape_logs ADD COLUMN glassdoor_count INTEGER",
+            "ALTER TABLE scrape_logs ADD COLUMN comeet_count INTEGER",
+            "ALTER TABLE scrape_logs ADD COLUMN filter_blocked INTEGER",
+            "ALTER TABLE scrape_logs ADD COLUMN filter_keywords INTEGER",
+            "ALTER TABLE scrape_logs ADD COLUMN filter_salary INTEGER",
+            "ALTER TABLE scrape_logs ADD COLUMN filter_remote INTEGER",
+            "ALTER TABLE scrape_logs ADD COLUMN jobs_scored INTEGER",
+            "ALTER TABLE scrape_logs ADD COLUMN score_failed INTEGER",
+        ]:
+            try:
+                conn.execute(text(col))
+                conn.commit()
+            except Exception:
+                pass

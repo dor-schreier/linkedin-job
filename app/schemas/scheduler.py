@@ -15,6 +15,24 @@ class ScrapeLogResponse(BaseModel):
     jobs_new: Optional[int] = None
     status: str
     error: Optional[str] = None
+    trigger: Optional[str] = None
+    linkedin_count: Optional[int] = None
+    indeed_count: Optional[int] = None
+    glassdoor_count: Optional[int] = None
+    comeet_count: Optional[int] = None
+    filter_blocked: Optional[int] = None
+    filter_keywords: Optional[int] = None
+    filter_salary: Optional[int] = None
+    filter_remote: Optional[int] = None
+    jobs_scored: Optional[int] = None
+    score_failed: Optional[int] = None
+
+
+class HistoryPageResponse(BaseModel):
+    items: list[ScrapeLogResponse]
+    total: int
+    page: int
+    page_size: int
 
 
 class SchedulerStatusResponse(BaseModel):

@@ -173,6 +173,11 @@ class CVData(BaseModel):
     honors: list[LinkedInHonor] = []
     volunteer: list[LinkedInVolunteer] = []
 
+    # Optional tailoring fields populated by cv_tailoring service
+    tailored_for_job_id: Optional[int] = None
+    tailored_summary: Optional[str] = None
+    prioritized_skills: list[str] = []
+
 
 class JobIntelligence(BaseModel):
     """Structured fields extracted from a raw job description via Groq."""

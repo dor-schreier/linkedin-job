@@ -8,6 +8,7 @@ from sqlalchemy import (
     Enum as SAEnum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -25,6 +26,19 @@ class JobStatus(enum.Enum):
     INTERVIEWING = "interviewing"
     OFFER = "offer"
     REJECTED = "rejected"
+
+
+class InterviewType(enum.Enum):
+    FIRST_HR = "first_hr"
+    INITIAL = "initial"
+    TECHNICAL = "technical"
+    FINAL_HR = "final_hr"
+
+
+class InterviewMedium(enum.Enum):
+    PHONE = "phone"
+    ZOOM = "zoom"
+    IN_PERSON = "in_person"
 
 
 class Company(Base):
@@ -52,7 +66,7 @@ class Job(Base):
     salary_min = Column(Float, nullable=True)
     salary_max = Column(Float, nullable=True)
     salary_currency = Column(String(10), nullable=True)
-    job_hash = Column(String(64), unique=True, nullable=False)  # SHA256(title+company+location) for dedup
+    job_hash = Column(String(64), unique=True, nullable=False)  # SHA256 dedup key; Comeet rows use SHA256("comeet|{company}/{position-code}/{job-id}"), others use SHA256(title+company+location)
     status = Column(SAEnum(JobStatus), default=JobStatus.NEW, nullable=False)
     fit_score = Column(Integer, nullable=True)  # 0-100, Phase 4
     fit_summary = Column(Text, nullable=True)  # Phase 4
@@ -72,11 +86,13 @@ class Job(Base):
     is_rejected = Column(Boolean, default=False, nullable=False, server_default="0")
     rejected_at = Column(DateTime, nullable=True)
     rejected_by_rule_id = Column(Integer, ForeignKey("reject_rules.id", ondelete="SET NULL"), nullable=True)
+    applied_at = Column(DateTime, nullable=True)
     scraped_at = Column(DateTime, server_default=func.now(), nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     company_info = relationship("Company", foreign_keys=[company_id])
     rejected_by_rule = relationship("RejectRule", foreign_keys=[rejected_by_rule_id])
+    interviews = relationship("Interview", back_populates="job", cascade="all, delete-orphan", order_by="Interview.scheduled_at")
 
     @validates('status')
     def _sync_from_status(self, key, value):
@@ -90,6 +106,9 @@ class Job(Base):
             elif self.status == JobStatus.REJECTED:
                 self.is_rejected = False
                 self.is_active = True
+            if value == JobStatus.APPLIED and not self.applied_at:
+                from datetime import datetime
+                self.applied_at = datetime.utcnow()
         finally:
             self._rejection_sync = False
         return value
@@ -110,6 +129,21 @@ class Job(Base):
         finally:
             self._rejection_sync = False
         return value
+
+
+class Interview(Base):
+    __tablename__ = "interviews"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True)
+    scheduled_at = Column(DateTime, nullable=False)
+    interview_type = Column(SAEnum(InterviewType), nullable=False)
+    medium = Column(SAEnum(InterviewMedium), nullable=False)
+    location = Column(String(500), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    job = relationship("Job", back_populates="interviews", foreign_keys=[job_id])
 
 
 class RejectRule(Base):
@@ -158,6 +192,39 @@ class Profile(Base):
     linkedin_analyzed_at = Column(DateTime, nullable=True)  # timestamp of last LinkedIn profile analysis run
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    experiences = relationship("ProfileExperience", cascade="all, delete-orphan", order_by="ProfileExperience.display_order")
+    educations = relationship("ProfileEducation", cascade="all, delete-orphan", order_by="ProfileEducation.display_order")
+
+
+class ProfileExperience(Base):
+    __tablename__ = "profile_experiences"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    profile_id = Column(Integer, ForeignKey("profile.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(300), nullable=True)
+    company = Column(String(300), nullable=True)
+    location = Column(String(300), nullable=True)
+    start_date = Column(String(20), nullable=True)
+    end_date = Column(String(20), nullable=True)
+    is_current = Column(Boolean, default=False, nullable=False, server_default="0")
+    description = Column(Text, nullable=True)
+    display_order = Column(Integer, default=0, nullable=False)
+
+
+class ProfileEducation(Base):
+    __tablename__ = "profile_educations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    profile_id = Column(Integer, ForeignKey("profile.id", ondelete="CASCADE"), nullable=False)
+    school = Column(String(300), nullable=True)
+    degree = Column(String(300), nullable=True)
+    field_of_study = Column(String(300), nullable=True)
+    start_year = Column(Integer, nullable=True)
+    end_year = Column(Integer, nullable=True)
+    grade = Column(String(100), nullable=True)
+    description = Column(Text, nullable=True)
+    display_order = Column(Integer, default=0, nullable=False)
+
 
 class SearchConfig(Base):
     """Search configuration for a scrape run.
@@ -203,8 +270,11 @@ class Notification(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     job_id = Column(Integer, nullable=False)
-    watch_rule_id = Column(Integer, nullable=False)
+    watch_rule_id = Column(Integer, nullable=True)  # null for interview reminders
     is_read = Column(Boolean, default=False)
+    kind = Column(String(30), default='watch_match', nullable=False)
+    interview_id = Column(Integer, nullable=True, index=True)
+    message = Column(String(300), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -219,6 +289,17 @@ class ScrapeLog(Base):
     jobs_new = Column(Integer, nullable=True)
     status = Column(String(20), default="running", nullable=False)  # running, success, error
     error = Column(Text, nullable=True)
+    trigger = Column(String(20), nullable=True)  # "scheduled" or "manual"
+    linkedin_count = Column(Integer, nullable=True)
+    indeed_count = Column(Integer, nullable=True)
+    glassdoor_count = Column(Integer, nullable=True)
+    comeet_count = Column(Integer, nullable=True)
+    filter_blocked = Column(Integer, nullable=True)
+    filter_keywords = Column(Integer, nullable=True)
+    filter_salary = Column(Integer, nullable=True)
+    filter_remote = Column(Integer, nullable=True)
+    jobs_scored = Column(Integer, nullable=True)
+    score_failed = Column(Integer, nullable=True)
 
 
 class SchedulerConfig(Base):
@@ -250,3 +331,27 @@ class CVRecord(Base):
     cv_json = Column(Text, nullable=False)
     template_name = Column(String(100), nullable=False, server_default="default")
     generated_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+
+class TailoredCV(Base):
+    """A CV tailored by LLM for one specific job. One row per job_id."""
+    __tablename__ = "tailored_cvs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(Integer, unique=True, nullable=False)
+    cv_json = Column(Text, nullable=False)
+    pdf_path = Column(Text, nullable=True)
+    docx_path = Column(Text, nullable=True)
+    model_used = Column(Text, nullable=True)
+    generated_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+
+class UploadedCV(Base):
+    """Stores a user-uploaded LinkedIn PDF profile and its parsed JSON. Single-user app — latest row wins."""
+    __tablename__ = "uploaded_cvs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    file_path = Column(Text, nullable=False)
+    original_filename = Column(Text, nullable=False)
+    parsed_json = Column(Text, nullable=False)
+    uploaded_at = Column(DateTime, server_default=func.now(), nullable=False)

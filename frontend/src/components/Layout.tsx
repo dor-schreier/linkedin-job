@@ -13,10 +13,11 @@ const navItems = [
   { key: 'jobs', href: '/jobs', icon: 'dashboard', label: 'Jobs' },
   { key: 'profile', href: '/profile', icon: 'person_search', label: 'Profile' },
   { key: 'profile-optimizer', href: '/profile/optimizer', icon: 'auto_awesome', label: 'Profile Optimizer' },
-  { key: 'cv-export', href: '/cv/export', icon: 'description', label: 'Export CV', external: true },
-{ key: 'watch-rules', href: '/watch-rules', icon: 'rule', label: 'Watch Rules' },
+  { key: 'watch-rules', href: '/watch-rules', icon: 'rule', label: 'Watch Rules' },
   { key: 'reject-rules', href: '/reject-rules', icon: 'block', label: 'Reject Rules' },
+  { key: 'applications', href: '/applications', icon: 'view_kanban', label: 'Applications' },
   { key: 'scheduler', href: '/scheduler', icon: 'schedule', label: 'Scheduler' },
+  { key: 'history', href: '/history', icon: 'history', label: 'History' },
   { key: 'health', href: '/health', icon: 'monitor_heart', label: 'Health' },
 ]
 
@@ -215,14 +216,14 @@ export default function Layout({ children, title, active, headerRight }: Props) 
       <div
         ref={contentRef}
         id="app-content"
-        className="min-h-screen"
+        className="h-screen flex flex-col overflow-hidden"
         style={{ marginLeft: DEFAULT_W }}
       >
-        <header className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-8 py-4 border-b border-outline-variant/15 flex items-center justify-between">
+        <header className="shrink-0 z-50 bg-surface/80 backdrop-blur-md px-8 py-4 border-b border-outline-variant/15 flex items-center justify-between">
           <h2 className="text-xl font-bold font-headline">{title}</h2>
           {headerRight && <div>{headerRight}</div>}
         </header>
-        <div className="px-8 py-6">{children}</div>
+        <div className="px-8 py-6 flex-1 overflow-y-auto flex flex-col">{children}</div>
       </div>
     </div>
   )

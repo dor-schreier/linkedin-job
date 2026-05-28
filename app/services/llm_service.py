@@ -139,7 +139,12 @@ COMPANY_ENRICHMENT_SYSTEM_PROMPT = (
     "sector: industry sector (e.g. 'Fintech', 'Healthcare', 'Cybersecurity', 'E-commerce', 'SaaS', 'EdTech', 'Defense', 'Consulting').\n"
     "company_type: one of the exact enum values — corporate=large established company, startup=early-stage venture, "
     "scaleup=growing startup, agency=consulting/services firm, non-profit=NGO/charity, government=public sector, unknown=unclear.\n"
-    "what_they_do: concise plain-language description of the company product/service/business model."
+    "what_they_do: concise plain-language description of the company product/service/business model. "
+    "If you have no reliable information, use empty string \"\".\n"
+    "sector: if unknown use \"unknown\".\n"
+    "NEVER write apologies, explanations, or 'I cannot find' text — use empty string or 'unknown' instead.\n"
+    "If a <web_context> block is present, treat it as primary evidence and reference specific products, services, or "
+    "details from it. Only fall back to training knowledge when the snippets are silent on a field."
 )
 
 JOB_SUMMARY_SYSTEM_PROMPT = (
@@ -156,6 +161,46 @@ JOB_SUMMARY_SYSTEM_PROMPT = (
     "experience_needed: years and seniority level (e.g. '3-5 years, mid-level').\n"
     "general_description: plain-language summary of the role and day-to-day work.\n"
     "Return empty lists for list fields and empty string for string fields if not determinable."
+)
+
+LINKEDIN_PDF_SYSTEM_PROMPT = (
+    "You are a professional profile data extractor. Given the text of a LinkedIn 'Save to PDF' export "
+    "or any CV/resume PDF, respond ONLY with valid JSON matching exactly this schema — no markdown fences, no extra text.\n\n"
+    "Schema:\n"
+    "{\n"
+    '  "profile_url": "<str — linkedin.com/in/... URL if found, else empty string>",\n'
+    '  "full_name": "<str>",\n'
+    '  "headline": "<str or null — job title or professional tagline>",\n'
+    '  "location": "<str or null>",\n'
+    '  "email": "<str or null>",\n'
+    '  "phone": "<str or null>",\n'
+    '  "about": "<str or null — Summary, Objective, or About section text>",\n'
+    '  "experience": [\n'
+    '    {"title": "<str>", "company": "<str>", "location": "<str or null>",\n'
+    '     "start_date": "<str or null, e.g. Jan 2020>", "end_date": "<str or null, use Present if current>",\n'
+    '     "is_current": <bool>, "description": "<str or null>", "employment_type": "<str or null>"}\n'
+    '  ],\n'
+    '  "education": [\n'
+    '    {"school": "<str>", "degree": "<str or null>", "field_of_study": "<str or null>",\n'
+    '     "start_year": "<str or null>", "end_year": "<str or null>", "description": "<str or null>"}\n'
+    '  ],\n'
+    '  "skills": [\n'
+    '    {"skill_name": "<str>", "endorsement_count": <int, 0 if unknown>}\n'
+    '  ],\n'
+    '  "certifications": [\n'
+    '    {"name": "<str>", "issuing_org": "<str or null>", "issue_date": "<str or null>"}\n'
+    '  ],\n'
+    '  "languages": [{"language": "<str>", "proficiency": "<str or null>"}],\n'
+    '  "projects": [{"name": "<str>", "description": "<str or null>", "url": "<str or null>"}],\n'
+    '  "honors": [{"title": "<str>", "issuer": "<str or null>", "date": "<str or null>"}],\n'
+    '  "volunteer": [{"role": "<str>", "organization": "<str or null>", "cause": "<str or null>"}]\n'
+    "}\n"
+    "Rules:\n"
+    "- Extract ONLY what is explicitly in the text. Use empty string for required str fields when not found.\n"
+    "- Use null for all optional fields not present. Never hallucinate data.\n"
+    "- Skills without endorsement counts: set endorsement_count to 0.\n"
+    "- Experience: most recent first. is_current=true only if end_date is 'Present' or marked current.\n"
+    "- Omit publications, recommendations, courses, test_scores, featured — leave them as empty lists.\n"
 )
 
 COMEET_JOB_EXTRACTION_SYSTEM_PROMPT = (
@@ -294,6 +339,8 @@ def _chat_complete(
     kwargs: dict[str, Any] = {"model": model, "messages": messages, "max_tokens": max_tokens}
     if temperature is not None:
         kwargs["temperature"] = temperature
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
     response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content or ""
 
@@ -595,12 +642,58 @@ def extract_job_intelligence(job) -> dict[str, Any] | None:
         return None
 
 
+def parse_linkedin_profile_text(text: str) -> Optional[dict[str, Any]]:
+    """Call LLM to extract LinkedInProfile JSON from raw PDF text. Returns dict or None on failure. Never raises."""
+    user_prompt = f"LinkedIn PDF text:\n\n{text[:12000]}"
+    try:
+        _rate_limit()
+        content = _chat_complete(
+            tier="recommend",
+            system=LINKEDIN_PDF_SYSTEM_PROMPT,
+            user=user_prompt,
+            max_tokens=4096,
+        )
+        data = _load_llm_json(content)
+        if not isinstance(data, dict):
+            logger.warning("parse_linkedin_profile_text: LLM returned non-dict: %s", type(data))
+            return None
+        return data
+    except Exception as exc:
+        logger.error("parse_linkedin_profile_text failed: %s", exc)
+        return None
+
+
+def fetch_company_web_snippets(company_name: str) -> str | None:
+    """Search the web for company snippets to ground LLM enrichment. Returns formatted string or None on any error."""
+    try:
+        from duckduckgo_search import DDGS
+        results = DDGS().text(f'"{company_name}" company about', max_results=5)
+        if not results:
+            return None
+        parts: list[str] = []
+        total = 0
+        for r in results:
+            snippet = f"[{r.get('title', '')}] {r.get('body', '')}".strip()
+            remaining = 1500 - total
+            if remaining <= 0:
+                break
+            if len(snippet) > remaining:
+                snippet = snippet[:remaining]
+            parts.append(snippet)
+            total += len(snippet)
+        return "\n\n".join(parts) if parts else None
+    except Exception as exc:
+        logger.debug("fetch_company_web_snippets failed for %r: %s", company_name, exc)
+        return None
+
+
 def enrich_company(
     company_name: str,
     company_industry: Optional[str] = None,
     company_description: Optional[str] = None,
+    job_description: Optional[str] = None,
 ) -> dict[str, Any] | None:
-    """Enrich company info via LLM. Returns {sector, company_type, what_they_do} or None. Never raises."""
+    """Enrich company info via LLM. Uses job description text as primary context; falls back to DDGS web snippets when absent. Returns {sector, company_type, what_they_do} or None. Never raises."""
     from app.schemas import CompanyEnrichment
 
     parts = [f"Company name: {company_name}"]
@@ -609,19 +702,48 @@ def enrich_company(
     if company_description:
         parts.append(f"Company description: {company_description[:500]}")
 
+    _COMPANY_SECTION_MARKERS = (
+        "who we are", "what we do", "about us", "about the company", "about the team",
+        "our mission", "our vision", "we are a ", "we're a ", "we build", "we develop",
+        "we help", "we provide", "we offer", "founded in", "our company",
+    )
+    desc_has_company = job_description and any(
+        m in job_description.lower() for m in _COMPANY_SECTION_MARKERS
+    )
+    if desc_has_company:
+        parts.append(f"\n<web_context>\n{job_description[:2000]}\n</web_context>")
+        logger.debug("enrich_company: using job description for %r (%d chars)", company_name, len(job_description))
+    else:
+        if job_description:
+            logger.debug("enrich_company: job description present but no company mention for %r — trying DDGS", company_name)
+        snippets = fetch_company_web_snippets(company_name)
+        if snippets:
+            parts.append(f"\n<web_context>\n{snippets}\n</web_context>")
+            logger.debug("enrich_company: web snippets fetched for %r (%d chars)", company_name, len(snippets))
+
     user_prompt = "\n".join(parts)
 
     try:
         _rate_limit()
         content = _chat_complete(
-            tier="default",
+            tier="recommend",
             system=COMPANY_ENRICHMENT_SYSTEM_PROMPT,
             user=user_prompt,
             max_tokens=256,
         )
         data = _load_llm_json(content)
+        if not isinstance(data, dict):
+            logger.warning("enrich_company: LLM returned non-dict for %r: %r", company_name, content[:100])
+            return None
         validated = CompanyEnrichment.model_validate(data)
-        return validated.model_dump()
+        result = validated.model_dump()
+        _apology_prefixes = (
+            "i am sorry", "i'm sorry", "i cannot", "i could not", "i don't have",
+            "i do not have", "no information", "unfortunately", "i was unable",
+        )
+        if result.get("what_they_do", "").lower().startswith(_apology_prefixes):
+            result["what_they_do"] = ""
+        return result
     except Exception as e:
         logger.error("enrich_company failed for %r: %s", company_name, e)
         return None

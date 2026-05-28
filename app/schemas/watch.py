@@ -21,8 +21,10 @@ class WatchMatchRow(BaseModel):
     job_title: str
     company: str
     location: Optional[str] = None
-    rule_type: str
-    rule_value: str
+    rule_type: Optional[str] = None
+    rule_value: Optional[str] = None
+    kind: str = 'watch_match'
+    message: Optional[str] = None
     is_read: bool
     created_at: datetime
 

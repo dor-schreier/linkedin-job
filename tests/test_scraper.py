@@ -161,3 +161,74 @@ def test_normalize_row_none_values():
     assert result["location"] == ""
     assert result["salary_min"] is None
     assert result["salary_max"] is None
+
+
+# ---------------------------------------------------------------------------
+# Comeet URL-derived dedup hash
+# ---------------------------------------------------------------------------
+
+_COMEET_BASE = "https://www.comeet.com/jobs/acme-corp/A1.234"
+
+
+def _comeet_row(**overrides):
+    base = {
+        "title": "Senior Backend Engineer",
+        "company": "Acme Corp",
+        "location": "Tel Aviv",
+        "description": "desc",
+        "site": "comeet",
+        "job_url": f"{_COMEET_BASE}/senior-backend-engineer/abc123",
+        "min_amount": None,
+        "max_amount": None,
+        "currency": "",
+        "is_remote": False,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_comeet_same_url_different_title_same_hash():
+    """Two Comeet rows with the same URL but different LLM-extracted titles get the same job_hash."""
+    from app.scraper import _normalize_row
+
+    row1 = _comeet_row(title="Senior Backend Engineer")
+    row2 = _comeet_row(title="SENIOR BACKEND ENGINEER — REVISED BY LLM")
+    r1 = _normalize_row(row1)
+    r2 = _normalize_row(row2)
+    assert r1 is not None and r2 is not None
+    assert r1["job_hash"] == r2["job_hash"]
+
+
+def test_comeet_different_postings_different_hash():
+    """Two different Comeet postings (different position-code) produce distinct hashes."""
+    from app.scraper import _normalize_row
+
+    row1 = _comeet_row(job_url=f"{_COMEET_BASE}/engineer/abc123")
+    row2 = _comeet_row(job_url="https://www.comeet.com/jobs/acme-corp/B2.567/engineer/xyz999")
+    r1 = _normalize_row(row1)
+    r2 = _normalize_row(row2)
+    assert r1 is not None and r2 is not None
+    assert r1["job_hash"] != r2["job_hash"]
+
+
+def test_comeet_malformed_url_falls_back_to_legacy_hash():
+    """Malformed Comeet URL (site=comeet but bad URL) falls back to title+company+location hash."""
+    from app.scraper import _normalize_row, _compute_hash
+
+    row = _comeet_row(job_url="https://www.comeet.com/jobs/acme-corp/")
+    result = _normalize_row(row)
+    assert result is not None
+    expected = _compute_hash(row["title"], row["company"], row["location"])
+    assert result["job_hash"] == expected
+
+
+def test_non_comeet_rows_use_legacy_hash():
+    """LinkedIn/Indeed/Glassdoor rows still use SHA256(title+company+location)."""
+    from app.scraper import _normalize_row, _compute_hash
+
+    for site in ("linkedin", "indeed", "glassdoor"):
+        row = _make_row(site=site)
+        result = _normalize_row(row)
+        assert result is not None
+        expected = _compute_hash(row["title"], row["company"], row["location"])
+        assert result["job_hash"] == expected, f"Legacy hash mismatch for site={site}"
