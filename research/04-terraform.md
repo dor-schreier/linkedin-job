@@ -321,7 +321,7 @@ resource "aws_ecs_task_definition" "api" {
     name      = "api"
     image     = var.image_uri
     essential = true
-    portMappings = [{ containerPort = 8000, hostPort = 80, protocol = "tcp" }]
+    portMappings = [{ containerPort = 8010, hostPort = 80, protocol = "tcp" }]
     environment = [
       { name = "LLM_PROVIDER",        value = "groq" },
       { name = "COGNITO_REGION",      value = var.region },

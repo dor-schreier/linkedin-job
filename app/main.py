@@ -15,6 +15,7 @@ from app.database import init_db
 from app.logging_config import configure_logging
 from app.routes.companies import router as companies_router
 from app.routes.interviews import router as interviews_router
+from app.routes.similarity import router as similarity_router
 from app.routes.cv import router as cv_router
 from app.routes.cv_upload import router as cv_upload_router
 from app.routes.health import router as health_router
@@ -75,6 +76,7 @@ app.include_router(watch_router, prefix="/api", tags=["api/watch"])
 app.include_router(reject_router, prefix="/api", tags=["api/reject"])
 app.include_router(companies_router, prefix="/api", tags=["api/companies"])
 app.include_router(interviews_router, prefix="/api", tags=["api/interviews"])
+app.include_router(similarity_router, prefix="/api", tags=["api/similarity"])
 
 # Serve built React SPA — must come after all API routers
 _frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

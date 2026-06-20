@@ -220,7 +220,7 @@ export default function Scrape() {
                   <Input label="Max age (hours)" id="max_age_hours" type="number" {...form.bind('max_age_hours')} />
                   <Input label="Results wanted" id="results_wanted" type="number" {...form.bind('results_wanted')} />
                 </div>
-                <Input label="Min salary" id="min_salary" type="number" placeholder="e.g. 80000" {...form.bind('min_salary')} />
+                <Input label="Min salary" id="min_salary" type="number" placeholder="e.g. 80100" {...form.bind('min_salary')} />
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-wider text-outline block mb-1.5">Exclude keywords</label>
                   <textarea

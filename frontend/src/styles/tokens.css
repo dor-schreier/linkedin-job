@@ -3,32 +3,45 @@
   --font-family-body: 'Inter', sans-serif;
   --font-family-label: 'Inter', sans-serif;
 
-  --color-background: #0f1117;
-  --color-surface: #1a1d27;
-  --color-surface-bright: #252836;
-  --color-surface-container-lowest: #12141e;
-  --color-surface-container-low: #1e2130;
-  --color-surface-container: #222538;
-  --color-surface-container-high: #272a3d;
-  --color-surface-container-highest: #2d3045;
-  --color-on-surface: #e2e4f0;
-  --color-on-surface-variant: #9da3bd;
-  --color-outline: #565d78;
-  --color-outline-variant: #3a3f56;
-  --color-primary: #565e74;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #2e3348;
-  --color-on-primary-container: #c5cbdf;
-  --color-primary-dim: #8891a8;
-  --color-primary-fixed-dim: #3d4358;
-  --color-secondary: #7b8299;
-  --color-secondary-container: #2a2f44;
-  --color-on-secondary-container: #b8bdd0;
-  --color-error: #cf6679;
-  --color-on-error: #ffffff;
+  /* Surface hierarchy — Obsidian palette */
+  --color-background: #0b1326;
+  --color-surface: #0b1326;
+  --color-surface-dim: #0b1326;
+  --color-surface-bright: #31394d;
+  --color-surface-container-lowest: #060e20;
+  --color-surface-container-low: #131b2e;
+  --color-surface-container: #171f33;
+  --color-surface-container-high: #222a3d;
+  --color-surface-container-highest: #2d3449;
+
+  /* On-surface */
+  --color-on-surface: #dae2fd;
+  --color-on-surface-variant: #cbc3d7;
+
+  /* Outline */
+  --color-outline: #958ea0;
+  --color-outline-variant: #494454;
+
+  /* Primary — electric purple */
+  --color-primary: #F2FCB1;
+  --color-on-primary: #3c0091;
+  --color-primary-container: #5516be;
+  --color-on-primary-container: #e9ddff;
+  --color-primary-dim: #b09de0;
+  --color-primary-fixed-dim: #F2FCB1;
+
+  /* Secondary — mint green */
+  --color-secondary: #4edea3;
+  --color-on-secondary: #003824;
+  --color-secondary-container: #00a572;
+  --color-on-secondary-container: #00311f;
+
+  /* Error */
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
 
   /* Semantic status colors */
-  --color-success: #4caf82;
-  --color-warning: #d4963a;
+  --color-success: #4edea3;
+  --color-warning: #ffb869;
   --color-info: #5b8dd9;
 }

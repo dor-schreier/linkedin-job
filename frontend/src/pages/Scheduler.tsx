@@ -4,7 +4,7 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Input from '../components/ui/Input'
-import { useScheduler, useSchedulerToggle, useSchedulerRunNow, useSchedulerConfig, useCleanupRunNow } from '../api/queries'
+import { useScheduler, useSchedulerToggle, useSchedulerRunNow, useSchedulerConfig, useCleanupRunNow, useCleanupSources, useCleanupLimit, useCleanupSkipValidated } from '../api/queries'
 
 export default function Scheduler() {
   const { data, isLoading } = useScheduler()
@@ -12,12 +12,42 @@ export default function Scheduler() {
   const runNow = useSchedulerRunNow()
   const saveConfig = useSchedulerConfig()
   const cleanupRun = useCleanupRunNow()
+  const cleanupSources = useCleanupSources()
+  const cleanupLimit = useCleanupLimit()
+  const cleanupSkipValidated = useCleanupSkipValidated()
   const [intervalHours, setIntervalHours] = useState<string>('')
+  const [limitInput, setLimitInput] = useState<string>('')
+  const [skipHoursInput, setSkipHoursInput] = useState<string>('')
 
   const cfg = (data as any)?.config
   const logs: any[] = (data as any)?.scrape_logs ?? []
   const cleanupLastRun = (data as any)?.cleanup_last_run_at
   const cleanupResult = (data as any)?.cleanup_last_result
+
+  // null cleanup_sources means "all sources"; reflect that as every box checked.
+  const availableSources: string[] = (data as any)?.available_sources ?? []
+  const selectedSources: string[] | null = (data as any)?.cleanup_sources ?? null
+  const isSourceSelected = (s: string) => (selectedSources === null ? true : selectedSources.includes(s))
+  const savedLimit: number | null = (data as any)?.cleanup_limit ?? null
+  const savedSkipHours: number | null = (data as any)?.cleanup_skip_validated_hours ?? null
+
+  function toggleSource(s: string) {
+    const current = selectedSources === null ? [...availableSources] : [...selectedSources]
+    const next = current.includes(s) ? current.filter((x) => x !== s) : [...current, s]
+    cleanupSources.mutate(next)
+  }
+
+  function handleSaveLimit(e: React.FormEvent) {
+    e.preventDefault()
+    const n = parseInt(limitInput)
+    cleanupLimit.mutate(Number.isFinite(n) && n > 0 ? n : 0)
+  }
+
+  function handleSaveSkipHours(e: React.FormEvent) {
+    e.preventDefault()
+    const n = parseInt(skipHoursInput)
+    cleanupSkipValidated.mutate(Number.isFinite(n) && n > 0 ? n : 0)
+  }
 
   function handleSaveConfig(e: React.FormEvent) {
     e.preventDefault()
@@ -106,6 +136,78 @@ export default function Scheduler() {
               Last run: <span className="text-on-surface-variant">{new Date(cleanupLastRun).toLocaleString()}</span>
             </p>
           )}
+          {availableSources.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-outline mb-2">Sources to check</p>
+              <div className="flex flex-wrap gap-2">
+                {availableSources.map((s) => {
+                  const on = isSourceSelected(s)
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => toggleSource(s)}
+                      disabled={cleanupSources.isPending}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm capitalize transition-colors disabled:opacity-50 ${
+                        on
+                          ? 'border-primary/40 bg-primary/10 text-primary'
+                          : 'border-outline-variant/40 bg-transparent text-on-surface-variant'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                        {on ? 'check_circle' : 'radio_button_unchecked'}
+                      </span>
+                      {s}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="mt-2 text-xs text-outline">
+                Applies to both manual and scheduled runs. Tip: unchecking LinkedIn avoids automated checks against your logged-in account.
+              </p>
+            </div>
+          )}
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-outline mb-2">Jobs per run</p>
+            <form onSubmit={handleSaveLimit} className="flex items-end gap-3">
+              <div className="w-40">
+                <Input
+                  label="Max jobs to check"
+                  type="number"
+                  min={0}
+                  placeholder={savedLimit ? String(savedLimit) : 'No limit'}
+                  value={limitInput}
+                  onChange={(e) => setLimitInput(e.target.value)}
+                />
+              </div>
+              <Button type="submit" variant="secondary" loading={cleanupLimit.isPending}>Save</Button>
+            </form>
+            <p className="mt-2 text-xs text-outline">
+              Checks the oldest jobs first (by scrape date). Currently:{' '}
+              <span className="text-on-surface-variant">{savedLimit ? `${savedLimit} per run` : 'no limit (all jobs)'}</span>. Set 0 for no limit.
+            </p>
+          </div>
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-outline mb-2">Skip recently validated</p>
+            <form onSubmit={handleSaveSkipHours} className="flex items-end gap-3">
+              <div className="w-40">
+                <Input
+                  label="Skip if checked within (hours)"
+                  type="number"
+                  min={0}
+                  placeholder={savedSkipHours ? String(savedSkipHours) : 'Off'}
+                  value={skipHoursInput}
+                  onChange={(e) => setSkipHoursInput(e.target.value)}
+                />
+              </div>
+              <Button type="submit" variant="secondary" loading={cleanupSkipValidated.isPending}>Save</Button>
+            </form>
+            <p className="mt-2 text-xs text-outline">
+              Jobs with a confirmed active/inactive result in this window are skipped, so limited
+              batches rotate through the backlog. Blocked checks are always retried. Currently:{' '}
+              <span className="text-on-surface-variant">{savedSkipHours ? `skipping if validated in last ${savedSkipHours}h` : 'off (re-check every run)'}</span>. Set 0 to disable.
+            </p>
+          </div>
           <div className="flex items-center gap-4">
             <Button
               variant="secondary"
@@ -121,6 +223,15 @@ export default function Scheduler() {
               </span>
             )}
           </div>
+          {cleanupResult?.linkedin_auth_invalid && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>warning</span>
+              <span>
+                Your LinkedIn session cookie is missing or expired, so LinkedIn jobs couldn't be checked.
+                Update <code className="font-mono text-xs">LINKEDIN_SESSION_COOKIE</code> in your <code className="font-mono text-xs">.env</code> and restart the app.
+              </span>
+            </div>
+          )}
         </Card>
 
         {/* Scrape log */}

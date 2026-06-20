@@ -312,6 +312,37 @@ def init_db():
             conn.commit()
         except Exception:
             pass
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN subsector TEXT"))
+            conn.commit()
+        except Exception:
+            pass
+        # Similarity engine migrations
+        for col in [
+            "ALTER TABLE jobs ADD COLUMN is_target BOOLEAN NOT NULL DEFAULT 0",
+            "ALTER TABLE jobs ADD COLUMN similarity_score INTEGER",
+            "ALTER TABLE jobs ADD COLUMN similarity_breakdown_json TEXT",
+        ]:
+            try:
+                conn.execute(text(col))
+                conn.commit()
+            except Exception:
+                pass
+        try:
+            conn.execute(text(
+                "CREATE TABLE IF NOT EXISTS similarity_weights ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "weight_title REAL NOT NULL DEFAULT 1.0, "
+                "weight_skills REAL NOT NULL DEFAULT 1.0, "
+                "weight_seniority REAL NOT NULL DEFAULT 1.0, "
+                "weight_sector REAL NOT NULL DEFAULT 1.0, "
+                "is_enabled BOOLEAN NOT NULL DEFAULT 1, "
+                "min_score_threshold INTEGER, "
+                "updated_at DATETIME DEFAULT (datetime('now')))"
+            ))
+            conn.commit()
+        except Exception:
+            pass
         # ScrapeLog extended stats migration
         for col in [
             "ALTER TABLE scrape_logs ADD COLUMN trigger VARCHAR(20)",
@@ -331,3 +362,27 @@ def init_db():
                 conn.commit()
             except Exception:
                 pass
+        # Per-source cleanup selection (NULL = all sources)
+        try:
+            conn.execute(text("ALTER TABLE scheduler_config ADD COLUMN cleanup_sources TEXT"))
+            conn.commit()
+        except Exception:
+            pass
+        # Max jobs to check per cleanup run (NULL = no limit)
+        try:
+            conn.execute(text("ALTER TABLE scheduler_config ADD COLUMN cleanup_limit INTEGER"))
+            conn.commit()
+        except Exception:
+            pass
+        # Skip jobs validated within the past N hours during cleanup (NULL/0 = don't skip)
+        try:
+            conn.execute(text("ALTER TABLE scheduler_config ADD COLUMN cleanup_skip_validated_hours INTEGER"))
+            conn.commit()
+        except Exception:
+            pass
+        # Timestamp of last definitive cleanup verdict (active/inactive) per job
+        try:
+            conn.execute(text("ALTER TABLE jobs ADD COLUMN last_validated_at DATETIME"))
+            conn.commit()
+        except Exception:
+            pass

@@ -1,6 +1,6 @@
 # 03 · Step-by-Step Deployment Plan
 
-This plan is IaC-agnostic. The same ordered steps apply whether you choose Terraform ([04](04-terraform.md)) or CDK ([05](05-aws-cdk.md)). Each step lists *what* to create; the IaC files in 04/05 show *how*.
+This plan is IaC-agnostic. The same ordered steps apply whether you choose Terraform ([04](04-terraform.md)) or CDK ([05](05-aws-cdk.md)). Each step lists _what_ to create; the IaC files in 04/05 show _how_.
 
 ## Phase 0 — Prerequisites (one-time, local)
 
@@ -66,7 +66,7 @@ Create:
 2. **Internet Gateway** + attach.
 3. **Public subnet A** `10.0.1.0/24` in AZ-a, with default route to IGW, `map_public_ip_on_launch = true`.
 4. **Private subnet A** `10.0.10.0/24` in AZ-a.
-5. **Private subnet B** `10.0.11.0/24` in AZ-b — *empty placeholder* to satisfy RDS's DB subnet group requirement.
+5. **Private subnet B** `10.0.11.0/24` in AZ-b — _empty placeholder_ to satisfy RDS's DB subnet group requirement.
 6. **DB subnet group** containing the two private subnets.
 7. **Security groups:**
    - `sg-web`: ingress 80/443 from `0.0.0.0/0`, egress all.
@@ -138,7 +138,7 @@ Verify: nothing else needed (no NAT, no VPC endpoints — at the cost of going v
 3. **Auto Scaling Group** with min=max=desired=1, attached to the launch template.
 4. **Task definition** `linkedin-job-api`:
    - Network mode: `bridge` (simpler) or `awsvpc`.
-   - Container: image from ECR, port 8000 → host 80.
+   - Container: image from ECR, port 8010 → host 80.
    - Env vars wired from SSM parameters (use `secrets` field with `valueFrom = ssm parameter ARN`).
    - Log driver: `awslogs` to log group `/ecs/linkedin-job`.
    - Task role: `ecsTaskRole`, execution role: `ecsTaskExecutionRole`.

@@ -49,11 +49,15 @@ class JobResponse(BaseModel):
     applied_at: Optional[datetime] = None
     scraped_at: datetime
     sector: Optional[str] = None
+    subsector: Optional[str] = None
     company_type: Optional[str] = None
     required_skills: list[str] = []
     tech_stack: list[str] = []
     days_since_posted: Optional[int] = None
     next_interview: Optional[NextInterviewResponse] = None
+    is_target: bool = False
+    similarity_score: Optional[int] = None
+    similarity_breakdown_json: Optional[str] = None
 
     @field_validator("status", mode="before")
     @classmethod

@@ -58,20 +58,20 @@ cp .env.example .env
 
 ### Environment variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `LLM_PROVIDER` | Yes | `groq`, `ollama`, or `vertexai` |
-| `GROQ_API_KEY` | If `LLM_PROVIDER=groq` | API key from console.groq.com |
-| `GROQ_FIT_MODEL` | No | Default `llama-3.1-8b-instant` |
-| `GROQ_RECOMMEND_MODEL` | No | Default `llama-3.3-70b-versatile` |
-| `OLLAMA_MODEL` | If `LLM_PROVIDER=ollama` | Default `qwen2.5:14b` |
-| `OLLAMA_BASE_URL` | No | Default `http://localhost:11434/v1` |
-| `GOOGLE_CLOUD_PROJECT` | If `LLM_PROVIDER=vertexai` | GCP project ID |
-| `VERTEX_AI_LOCATION` | If `LLM_PROVIDER=vertexai` | Default `us-central1` |
-| `VERTEX_LLM_FIT_MODEL` | No | Default `gemini-2.5-flash-lite` |
-| `VERTEX_LLM_RECOMMEND_MODEL` | No | Default `gemini-2.5-flash` |
-| `LINKEDIN_SESSION_COOKIE` | For CV scrape export | Session cookie from browser DevTools |
-| `DATABASE_URL` | No | Defaults to `sqlite:///data/jobs.db` |
+| Variable                     | Required                   | Description                          |
+| ---------------------------- | -------------------------- | ------------------------------------ |
+| `LLM_PROVIDER`               | Yes                        | `groq`, `ollama`, or `vertexai`      |
+| `GROQ_API_KEY`               | If `LLM_PROVIDER=groq`     | API key from console.groq.com        |
+| `GROQ_FIT_MODEL`             | No                         | Default `llama-3.1-8b-instant`       |
+| `GROQ_RECOMMEND_MODEL`       | No                         | Default `llama-3.3-70b-versatile`    |
+| `OLLAMA_MODEL`               | If `LLM_PROVIDER=ollama`   | Default `qwen2.5:14b`                |
+| `OLLAMA_BASE_URL`            | No                         | Default `http://localhost:11434/v1`  |
+| `GOOGLE_CLOUD_PROJECT`       | If `LLM_PROVIDER=vertexai` | GCP project ID                       |
+| `VERTEX_AI_LOCATION`         | If `LLM_PROVIDER=vertexai` | Default `us-central1`                |
+| `VERTEX_LLM_FIT_MODEL`       | No                         | Default `gemini-2.5-flash-lite`      |
+| `VERTEX_LLM_RECOMMEND_MODEL` | No                         | Default `gemini-2.5-flash`           |
+| `LINKEDIN_SESSION_COOKIE`    | For CV scrape export       | Session cookie from browser DevTools |
+| `DATABASE_URL`               | No                         | Defaults to `sqlite:///data/jobs.db` |
 
 For Ollama:
 
@@ -86,24 +86,24 @@ ollama pull qwen2.5:14b
 
 ```bash
 cd frontend && npm install && npm run build && cd ..
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8010
 ```
 
-Open [http://localhost:8000](http://localhost:8000). The built React app is served directly by uvicorn.
+Open [http://localhost:8010](http://localhost:8010). The built React app is served directly by uvicorn.
 
 **Development (two processes, hot reload):**
 
 ```bash
 # Terminal 1 — backend
-DEBUG=1 uvicorn app.main:app --reload --reload-dir app --host 0.0.0.0 --port 8000
+DEBUG=1 uvicorn app.main:app --reload --reload-dir app --host 0.0.0.0 --port 8010
 
 # Terminal 2 — frontend
 cd frontend && npm install && npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) for the Vite dev server (proxies `/api` to port 8000).
+Open [http://localhost:5173](http://localhost:5173) for the Vite dev server (proxies `/api` to port 8010).
 
-API docs available at [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger) and `/redoc`.
+API docs available at [http://localhost:8010/docs](http://localhost:8010/docs) (Swagger) and `/redoc`.
 
 ## Usage
 
@@ -121,6 +121,7 @@ API docs available at [http://localhost:8000/docs](http://localhost:8000/docs) (
 Upload a LinkedIn PDF export from your browser (`Settings → Data Privacy → Get a copy of your data`). The LLM extracts your full profile — experience, skills (with endorsement counts), education, certifications, projects — and stores it for use in fit scoring and CV tailoring.
 
 Routes:
+
 - `POST /api/profile/cv-upload` — upload and parse
 - `GET /api/profile/cv-upload` — fetch latest parsed result
 - `DELETE /api/profile/cv-upload` — remove stored PDF
@@ -130,6 +131,7 @@ Routes:
 For any job, click "Generate Tailored CV". The LLM rewrites your experience bullets to emphasize the job's required skills and tech stack, selects your top 12 most relevant skills, and writes a 3–4 line professional summary. Output is downloadable as PDF or DOCX.
 
 Routes:
+
 - `POST /api/jobs/{job_id}/cv/generate` — generate (LLM call)
 - `GET /api/jobs/{job_id}/cv/pdf` — download as PDF
 - `GET /api/jobs/{job_id}/cv/docx` — download as DOCX
@@ -147,13 +149,13 @@ When **Include Comeet** is toggled on in the search config, the scraper issues a
 
 **Search backends** (configured via `GOOGLE_SEARCH_BACKEND`):
 
-| Backend | Key | Notes |
-|---|---|---|
-| `vertex` / `vertexai` | — | Vertex AI Search (Discovery Engine); most reliable; requires GCP setup |
-| `cse` | `GOOGLE_CSE_KEY`, `GOOGLE_CSE_CX` | Google Custom Search Engine; closed to new signups as of 2025 |
-| `ddgs` | — | DuckDuckGo; no API key required |
-| `google` | — | Scrapes google.com directly; auto-falls back to Playwright on block |
-| `playwright` | — | Headless Chromium; last-resort fallback |
+| Backend               | Key                               | Notes                                                                  |
+| --------------------- | --------------------------------- | ---------------------------------------------------------------------- |
+| `vertex` / `vertexai` | —                                 | Vertex AI Search (Discovery Engine); most reliable; requires GCP setup |
+| `cse`                 | `GOOGLE_CSE_KEY`, `GOOGLE_CSE_CX` | Google Custom Search Engine; closed to new signups as of 2025          |
+| `ddgs`                | —                                 | DuckDuckGo; no API key required                                        |
+| `google`              | —                                 | Scrapes google.com directly; auto-falls back to Playwright on block    |
+| `playwright`          | —                                 | Headless Chromium; last-resort fallback                                |
 
 **Vertex AI Search setup:** create a Web App data store in GCP → Vertex AI Agent Builder, restrict it to `comeet.com/*`, grant `Discovery Engine Viewer` to your service account, then set `GOOGLE_CLOUD_PROJECT`, `VERTEX_AI_DATA_STORE_ID`, `VERTEX_AI_ENGINE_ID`, and `VERTEX_AI_LOCATION`.
 

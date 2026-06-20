@@ -18,9 +18,9 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'uvicorn app.main:app --host 0.0.0.0 --port 8000',
+      command: 'uvicorn app.main:app --host 0.0.0.0 --port 8010',
       cwd: '../',
-      url: 'http://localhost:8000/api/health',
+      url: 'http://localhost:8010/api/health',
       reuseExistingServer: true,
       timeout: 30_000,
     },

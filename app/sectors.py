@@ -1,0 +1,16 @@
+SECTOR_CATEGORIES: list[str] = [
+    "Cybersecurity & Privacy",
+    "Core Software, IT & Infrastructure",
+    "Fintech & Financial Services",
+    "HealthTech, Life Sciences & Healthcare",
+    "Hardware, Semiconductors & DeepTech",
+    "Aerospace, Defense & GovTech",
+    "HR Tech & Human Resources",
+    "E-commerce, Retail & Consumer Goods",
+    "Automotive, Mobility & Logistics",
+    "Marketing, Advertising & Social Media",
+    "Media, Entertainment & Gaming",
+    "Professional Services & Business Tools",
+    "Industry, Energy & Sustainability",
+    "Education & Social Impact",
+]

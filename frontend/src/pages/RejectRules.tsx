@@ -27,6 +27,7 @@ export default function RejectRules() {
 
   const [type, setType] = useState<string>('title_keyword')
   const [value, setValue] = useState('')
+  const [values, setValues] = useState<string[]>([])
   const [propName, setPropName] = useState<string>('company')
 
   const { data: locations = [] } = useRejectLocations()
@@ -49,9 +50,21 @@ export default function RejectRules() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!value.trim()) return
-    await create.mutateAsync({ rule_type: type, value, property_name: type === 'property' ? propName : undefined })
-    setValue('')
+    if (type === 'title_keyword') {
+      if (!value.trim()) return
+      await create.mutateAsync({ rule_type: type, value })
+      setValue('')
+      return
+    }
+    if (values.length === 0) return
+    for (const v of values) {
+      await create.mutateAsync({
+        rule_type: type,
+        value: v,
+        property_name: type === 'property' ? propName : undefined,
+      })
+    }
+    setValues([])
   }
 
   return (
@@ -69,6 +82,7 @@ export default function RejectRules() {
                   onChange={(e) => {
                     setType(e.target.value)
                     setValue('')
+                    setValues([])
                   }}
                   className={SELECT_CLS}
                 >
@@ -85,6 +99,7 @@ export default function RejectRules() {
                     onChange={(e) => {
                       setPropName(e.target.value)
                       setValue('')
+                      setValues([])
                     }}
                     className={SELECT_CLS}
                   >
@@ -104,17 +119,47 @@ export default function RejectRules() {
                   />
                 ) : (
                   <>
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-outline block mb-1.5">Value</label>
-                    <select
-                      value={value}
-                      onChange={(e) => setValue(e.target.value)}
-                      className={`${SELECT_CLS} w-full`}
-                    >
-                      <option value="">— select —</option>
-                      {(type === 'location' ? availableLocations : availablePropertyValues).map((v) => (
-                        <option key={v} value={v}>{v}</option>
-                      ))}
-                    </select>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-outline block mb-1.5">
+                      Value{values.length > 0 ? ` (${values.length} selected)` : ''}
+                    </label>
+                    {(() => {
+                      const options = type === 'location' ? availableLocations : availablePropertyValues
+                      if (options.length === 0) {
+                        return <p className="text-sm text-outline">No values available.</p>
+                      }
+                      const allSelected = values.length === options.length
+                      return (
+                        <div className="max-h-48 overflow-y-auto bg-surface-container-low rounded-lg p-2 space-y-0.5">
+                          <label className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface-container cursor-pointer border-b border-outline/10 mb-1">
+                            <input
+                              type="checkbox"
+                              checked={allSelected}
+                              onChange={(e) => setValues(e.target.checked ? [...options] : [])}
+                              className="accent-primary"
+                            />
+                            <span className="text-sm font-medium text-on-surface">Select all</span>
+                          </label>
+                          {options.map((v) => (
+                            <label
+                              key={v}
+                              className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface-container cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={values.includes(v)}
+                                onChange={(e) =>
+                                  setValues((prev) =>
+                                    e.target.checked ? [...prev, v] : prev.filter((x) => x !== v),
+                                  )
+                                }
+                                className="accent-primary"
+                              />
+                              <span className="text-sm text-on-surface">{v}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )
+                    })()}
                   </>
                 )}
               </div>

@@ -78,6 +78,101 @@ def render_tailored_pdf(cv: CVData) -> bytes:
     return pdf_bytes
 
 
+def render_cover_letter_pdf(text: str, title: str = "", company: str = "") -> bytes:
+    """Render plain-text cover letter to PDF bytes via Playwright."""
+    from playwright.sync_api import sync_playwright
+    import html as _html
+
+    heading = ""
+    if title or company:
+        parts = [p for p in [title, company] if p]
+        heading = f"<h2 style='margin:0 0 20px;font-size:13px;font-weight:600;color:#444;font-family:Georgia,serif'>{_html.escape(' — '.join(parts))}</h2>"
+
+    # Split on paragraph breaks; within each paragraph preserve line breaks via <br>
+    paragraphs = text.strip().split("\n\n")
+    paras_html = "".join(
+        f"<p>{'<br>'.join(_html.escape(line) for line in para.splitlines())}</p>"
+        for para in paragraphs
+        if para.strip()
+    )
+
+    html_str = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  * {{ box-sizing: border-box; }}
+  body {{
+    font-family: Georgia, serif;
+    font-size: 12pt;
+    line-height: 1.75;
+    color: #222;
+    margin: 0;
+    padding: 0;
+  }}
+  p {{ margin: 0 0 14px; }}
+</style>
+</head><body>
+{heading}
+{paras_html}
+</body></html>"""
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content(html_str, wait_until="load")
+        pdf_bytes = page.pdf(
+            format="A4",
+            print_background=True,
+            margin={"top": "25mm", "bottom": "25mm", "left": "25mm", "right": "25mm"},
+        )
+        browser.close()
+    return pdf_bytes
+
+
+def render_cover_letter_docx(text: str, title: str = "", company: str = "") -> bytes:
+    """Render plain-text cover letter to DOCX bytes via python-docx."""
+    try:
+        from docx import Document
+        from docx.shared import Pt, Mm
+    except ImportError as exc:
+        raise ImportError("python-docx is required. Run: pip install python-docx") from exc
+
+    doc = Document()
+
+    section = doc.sections[0]
+    section.top_margin = Mm(25)
+    section.bottom_margin = Mm(25)
+    section.left_margin = Mm(25)
+    section.right_margin = Mm(25)
+
+    normal = doc.styles["Normal"]
+    normal.font.name = "Georgia"
+    normal.font.size = Pt(11)
+
+    if title or company:
+        parts = [p for p in [title, company] if p]
+        h = doc.add_paragraph()
+        h.paragraph_format.space_after = Pt(14)
+        run = h.add_run(" — ".join(parts))
+        _style_run(run, size=12, bold=True, color=_INK_700)
+
+    for para in text.strip().split("\n\n"):
+        para = para.strip()
+        if not para:
+            continue
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(10)
+        for i, line in enumerate(para.splitlines()):
+            if i > 0:
+                p.add_run().add_break()
+            run = p.add_run(line)
+            _style_run(run, size=11, color=_INK_700)
+
+    from io import BytesIO
+    buf = BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
 def _bullets_from_description(description: str | None, limit: int = 5) -> list[str]:
     if not description:
         return []

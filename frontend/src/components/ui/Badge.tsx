@@ -7,8 +7,8 @@ interface Props extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const colors: Record<Color, string> = {
-  default: 'bg-surface-container text-outline',
-  primary: 'bg-primary-container text-on-primary-container',
+  default: 'bg-surface-container text-on-surface-variant',
+  primary: 'bg-primary/15 text-primary',
   green: 'bg-success/15 text-success',
   red: 'bg-error/15 text-error',
   yellow: 'bg-warning/15 text-warning',

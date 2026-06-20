@@ -6,7 +6,7 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import InterviewModal, { type InterviewData, type InterviewModalState } from '../components/InterviewModal'
-import { useJobInterviews } from '../api/queries'
+import { useJobInterviews, useToggleJobTarget } from '../api/queries'
 import client from '../api/client'
 
 function useJob(id: number) {
@@ -126,6 +126,20 @@ function useGenerateTailoredCv(id: number) {
   })
 }
 
+function useGenerateCoverLetter(id: number) {
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/jobs/${id}/cover-letter`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.detail || `Failed: ${res.status}`)
+      }
+      const data = await res.json()
+      return data.cover_letter as string
+    },
+  })
+}
+
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime()
   const diff = Math.max(0, Date.now() - then)
@@ -194,6 +208,10 @@ export default function JobDetail() {
   const updateStatus = useUpdateStatus(jobId)
   const tailored = useTailoredCv(jobId)
   const generateTailored = useGenerateTailoredCv(jobId)
+  const generateCoverLetter = useGenerateCoverLetter(jobId)
+  const toggleTarget = useToggleJobTarget()
+  const [coverLetter, setCoverLetter] = useState<string | null>(null)
+  const [coverLetterCopied, setCoverLetterCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'intelligence' | 'score' | 'description'>('overview')
   const [ivModal, setIvModal] = useState<InterviewModalState>(null)
   const { data: interviews } = useJobInterviews(jobId)
@@ -251,9 +269,24 @@ export default function JobDetail() {
                 </Badge>
                 <Badge>{job.source}</Badge>
                 {job.sector && <Badge color="blue">{job.sector}</Badge>}
+                {job.subsector && <Badge color="blue">{job.subsector}</Badge>}
               </div>
             </div>
             <div className="shrink-0 space-y-2">
+              {/* Target toggle */}
+              <button
+                onClick={() => toggleTarget.mutate({ jobId, isTarget: !job.is_target })}
+                disabled={toggleTarget.isPending}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                  job.is_target
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container text-on-surface-variant hover:bg-primary/15 hover:text-primary'
+                }`}
+                title={job.is_target ? 'Remove from targets' : 'Mark as target role'}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: `'FILL' ${job.is_target ? 1 : 0}` }}>my_location</span>
+                {job.is_target ? 'Target Role' : 'Mark as Target'}
+              </button>
               {job.apply_url && (
                 <a
                   href={job.apply_url}
@@ -275,6 +308,37 @@ export default function JobDetail() {
               {job.fit_summary && <p className="text-sm text-on-surface-variant mt-2">{job.fit_summary}</p>}
             </div>
           )}
+
+          {/* Similarity score */}
+          {job.similarity_score != null && (() => {
+            let breakdown: Record<string, { raw: number; weight: number; contribution: number }> = {}
+            try { breakdown = JSON.parse(job.similarity_breakdown_json || '{}') } catch { /* ignore */ }
+            return (
+              <div className="mt-3 group relative inline-block">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary" style={{ fontSize: 14 }}>my_location</span>
+                  <span className="text-xs text-on-surface-variant">Similarity</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                    job.similarity_score >= 70 ? 'bg-primary/15 text-primary' :
+                    job.similarity_score >= 40 ? 'bg-warning/15 text-warning' :
+                    'bg-surface-container text-outline'
+                  }`}>{job.similarity_score}/100</span>
+                  <span className="material-symbols-outlined text-outline" style={{ fontSize: 14 }}>info</span>
+                </div>
+                {Object.keys(breakdown).length > 0 && (
+                  <div className="absolute left-0 top-full mt-1 z-20 hidden group-hover:block bg-surface-container-low rounded-xl shadow-lg border border-outline-variant/20 p-3 min-w-[200px]">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-outline mb-2">Breakdown</p>
+                    {Object.entries(breakdown).map(([dim, d]) => (
+                      <div key={dim} className="flex justify-between gap-4 text-xs py-0.5">
+                        <span className="text-on-surface-variant capitalize">{dim}</span>
+                        <span className="font-semibold text-on-surface">{Math.round(d.raw * 100)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Status + rating */}
           <div className="mt-4 flex items-center gap-4 flex-wrap">
@@ -367,11 +431,89 @@ export default function JobDetail() {
               >
                 Refresh Job
               </Button>
+              <Button
+                variant="secondary"
+                icon="edit_note"
+                onClick={() => generateCoverLetter.mutate(undefined, { onSuccess: (text) => { setCoverLetter(text); setCoverLetterCopied(false) } })}
+                loading={generateCoverLetter.isPending}
+              >
+                Generate Cover Letter
+              </Button>
             </div>
-            {(score.isError || reextract.isError || refresh.isError) && (
+            {(score.isError || reextract.isError || refresh.isError || generateCoverLetter.isError) && (
               <p className="text-xs text-error">
-                {((score.error || reextract.error || refresh.error) as Error)?.message}
+                {((score.error || reextract.error || refresh.error || generateCoverLetter.error) as Error)?.message}
               </p>
+            )}
+
+            {coverLetter && (
+              <Card title="Cover Letter">
+                <div className="flex gap-3 justify-end mb-2">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(coverLetter).then(() => {
+                        setCoverLetterCopied(true)
+                        setTimeout(() => setCoverLetterCopied(false), 2000)
+                      })
+                    }}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                      {coverLetterCopied ? 'check' : 'content_copy'}
+                    </span>
+                    {coverLetterCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const res = await fetch(`/api/jobs/${jobId}/cover-letter/pdf`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: coverLetter }),
+                      })
+                      if (!res.ok) return
+                      const blob = await res.blob()
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      const disposition = res.headers.get('Content-Disposition') || ''
+                      const match = disposition.match(/filename="([^"]+)"/)
+                      a.download = match ? match[1] : 'cover_letter.pdf'
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    }}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>picture_as_pdf</span>
+                    Download PDF
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const res = await fetch(`/api/jobs/${jobId}/cover-letter/docx`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: coverLetter }),
+                      })
+                      if (!res.ok) return
+                      const blob = await res.blob()
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      const disposition = res.headers.get('Content-Disposition') || ''
+                      const match = disposition.match(/filename="([^"]+)"/)
+                      a.download = match ? match[1] : 'cover_letter.docx'
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    }}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>description</span>
+                    Download DOCX
+                  </button>
+                </div>
+                <pre className="text-sm text-on-surface-variant whitespace-pre-wrap font-sans leading-relaxed">
+                  {coverLetter}
+                </pre>
+              </Card>
             )}
 
             <Card title="Tailored CV">

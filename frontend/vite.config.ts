@@ -9,8 +9,8 @@ export default defineConfig({
       interval: 300,
     },
     proxy: {
-      '/api': { target: 'http://localhost:8000', changeOrigin: true },
-      '/cv': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api': { target: 'http://localhost:8010', changeOrigin: true },
+      '/cv': { target: 'http://localhost:8010', changeOrigin: true },
     },
   },
 })

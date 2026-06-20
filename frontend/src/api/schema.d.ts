@@ -1542,6 +1542,11 @@ export interface components {
             errors: number;
             /** Duration Ms */
             duration_ms: number;
+            /**
+             * Linkedin Auth Invalid
+             * @default false
+             */
+            linkedin_auth_invalid: boolean;
         };
         /** CleanupStateResponse */
         CleanupStateResponse: {
@@ -1659,6 +1664,8 @@ export interface components {
             scraped_at: string;
             /** Sector */
             sector?: string | null;
+            /** Subsector */
+            subsector?: string | null;
             /** Company Type */
             company_type?: string | null;
             /** Description */
@@ -1749,6 +1756,8 @@ export interface components {
             scraped_at: string;
             /** Sector */
             sector?: string | null;
+            /** Subsector */
+            subsector?: string | null;
             /** Company Type */
             company_type?: string | null;
         };
@@ -1865,6 +1874,53 @@ export interface components {
             /** Cleanup Last Run At */
             cleanup_last_run_at?: string | null;
             cleanup_last_result?: components["schemas"]["CleanupResult"] | null;
+            /**
+             * Available Sources
+             * @default []
+             */
+            available_sources: string[];
+            /** Cleanup Sources */
+            cleanup_sources?: string[] | null;
+            /** Cleanup Limit */
+            cleanup_limit?: number | null;
+            /** Cleanup Skip Validated Hours */
+            cleanup_skip_validated_hours?: number | null;
+        };
+        /** CleanupSourcesRequest */
+        CleanupSourcesRequest: {
+            /** Sources */
+            sources: string[];
+        };
+        /** CleanupSourcesResponse */
+        CleanupSourcesResponse: {
+            /** Cleanup Sources */
+            cleanup_sources: string[];
+        };
+        /** CleanupLimitRequest */
+        CleanupLimitRequest: {
+            /**
+             * Limit
+             * @default 0
+             */
+            limit: number;
+        };
+        /** CleanupLimitResponse */
+        CleanupLimitResponse: {
+            /** Cleanup Limit */
+            cleanup_limit?: number | null;
+        };
+        /** CleanupSkipValidatedRequest */
+        CleanupSkipValidatedRequest: {
+            /**
+             * Hours
+             * @default 0
+             */
+            hours: number;
+        };
+        /** CleanupSkipValidatedResponse */
+        CleanupSkipValidatedResponse: {
+            /** Cleanup Skip Validated Hours */
+            cleanup_skip_validated_hours?: number | null;
         };
         /** SchedulerStatusResponse */
         SchedulerStatusResponse: {

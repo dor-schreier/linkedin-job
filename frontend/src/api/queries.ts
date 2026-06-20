@@ -76,6 +76,42 @@ export function useCleanupRunNow() {
   })
 }
 
+export function useCleanupSources() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (sources: string[]) =>
+      apiFetch('/api/cleanup/sources', {
+        method: 'POST',
+        body: JSON.stringify({ sources }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scheduler'] }),
+  })
+}
+
+export function useCleanupLimit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (limit: number) =>
+      apiFetch('/api/cleanup/limit', {
+        method: 'POST',
+        body: JSON.stringify({ limit }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scheduler'] }),
+  })
+}
+
+export function useCleanupSkipValidated() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (hours: number) =>
+      apiFetch('/api/cleanup/skip-validated', {
+        method: 'POST',
+        body: JSON.stringify({ hours }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scheduler'] }),
+  })
+}
+
 // ── Scrape History ───────────────────────────────────────────────────────────
 
 export function useHistory(page: number = 1, pageSize: number = 25) {
@@ -500,6 +536,127 @@ export function useDeleteInterview() {
       qc.invalidateQueries({ queryKey: ['interviews', variables.jobId] })
       qc.invalidateQueries({ queryKey: ['notifications'] })
     },
+  })
+}
+
+// ── Similarity ────────────────────────────────────────────────────────────────
+
+export function useSimilarityWeights() {
+  return useQuery({
+    queryKey: ['similarity', 'weights'],
+    queryFn: () => apiFetch('/api/similarity/weights'),
+  })
+}
+
+export function useUpdateSimilarityWeights() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      weight_title?: number
+      weight_skills?: number
+      weight_seniority?: number
+      weight_sector?: number
+      is_enabled?: boolean
+      min_score_threshold?: number | null
+    }) => apiFetch('/api/similarity/weights', { method: 'PUT', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['similarity'] }),
+  })
+}
+
+export function useTargetJobs() {
+  return useQuery({
+    queryKey: ['similarity', 'targets'],
+    queryFn: () => apiFetch('/api/similarity/targets'),
+  })
+}
+
+export function useToggleJobTarget() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, isTarget }: { jobId: number; isTarget: boolean }) =>
+      apiFetch(`/api/jobs/${jobId}/target`, { method: 'POST', body: JSON.stringify({ is_target: isTarget }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs'] })
+      qc.invalidateQueries({ queryKey: ['similarity', 'targets'] })
+    },
+  })
+}
+
+export function useRecomputeSimilarity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiFetch('/api/similarity/recompute', { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs'] }),
+  })
+}
+
+// ── Company Sector Options ────────────────────────────────────────────────────
+
+export function useCompanySectorOptions() {
+  return useQuery({
+    queryKey: ['companies', 'sectors'],
+    queryFn: () =>
+      apiFetch('/api/companies/sectors') as Promise<{ sectors: string[]; subsectors: string[] }>,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useUpdateCompanySector() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      sector,
+      subsector,
+    }: {
+      companyId: number
+      sector: string | null
+      subsector: string | null
+    }) =>
+      apiFetch(`/api/companies/${companyId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ sector, subsector }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['companies', 'overview'] })
+      qc.invalidateQueries({ queryKey: ['companies', 'sectors'] })
+    },
+  })
+}
+
+// ── Companies Overview ────────────────────────────────────────────────────────
+
+export type CompanyOverviewItem = {
+  name_display: string
+  company: string
+  company_id: number | null
+  sector: string | null
+  subsector: string | null
+  company_type: string | null
+  what_they_do: string | null
+  total_active_jobs: number
+  last_scraped_at: string | null
+  location_breakdown: { location: string; count: number }[]
+}
+
+export function useCompaniesOverview() {
+  return useQuery({
+    queryKey: ['companies', 'overview'],
+    queryFn: () => apiFetch('/api/companies/overview') as Promise<CompanyOverviewItem[]>,
+  })
+}
+
+export function useCompanyJobs(companyName: string | null, location?: string | null) {
+  const params = new URLSearchParams()
+  if (companyName) params.set('company', companyName)
+  if (location) params.set('location', location)
+  params.set('limit', '200')
+  params.set('valid_only', '1')
+  return useQuery({
+    queryKey: ['jobs', 'by-company', companyName, location ?? null],
+    queryFn: () =>
+      apiFetch(`/api/jobs?${params}`) as Promise<{ jobs: any[]; total: number; has_more: boolean }>,
+    enabled: !!companyName,
   })
 }
 

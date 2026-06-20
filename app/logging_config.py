@@ -48,6 +48,9 @@ def configure_logging(log_dir: str = "logs") -> Path:
             "uvicorn": {"level": uvicorn_level},
             "uvicorn.access": {"level": uvicorn_level},
             "apscheduler": {"level": uvicorn_level},
+            # httpx logs every request at INFO ("HTTP Request: GET ... 403");
+            # noisy during cleanup URL checks, so keep it at WARNING.
+            "httpx": {"level": uvicorn_level},
         },
         "root": {
             "level": level,

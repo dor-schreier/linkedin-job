@@ -8,8 +8,8 @@
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  background-color: #0f1117;
-  color: #e2e4f0;
+  background-color: #0b1326;
+  color: #dae2fd;
 }
 
 h1, h2, h3, h4 {
@@ -25,4 +25,39 @@ h1, h2, h3, h4 {
 #root {
   min-height: 100svh;
   width: 100%;
+}
+
+/* Score range slider: track is inert, only thumbs are interactive */
+.score-range-input {
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.score-range-input::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary, #F2FCB1);
+  cursor: grab;
+}
+.score-range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary, #F2FCB1);
+  cursor: grab;
+  border: none;
+}
+.score-range-input::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.score-range-input::-moz-range-track {
+  background: transparent;
 }

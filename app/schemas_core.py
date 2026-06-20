@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from app.sectors import SECTOR_CATEGORIES
 
 
 # ── LinkedIn Profile Schema ───────────────────────────────────────────────────
@@ -214,8 +216,16 @@ class CompanyEnrichment(BaseModel):
     """AI-generated company profile."""
 
     sector: str = ""
+    subsector: Optional[str] = None
     company_type: str = "unknown"
     what_they_do: str = ""
+
+    @field_validator("sector")
+    @classmethod
+    def sector_must_be_valid(cls, v: str) -> str:
+        if v and v not in SECTOR_CATEGORIES:
+            return ""
+        return v
 
 
 class FitScoreBreakdown(BaseModel):

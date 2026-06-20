@@ -75,10 +75,10 @@ RUN pip install -r requirements.txt
 COPY app/ ./app/
 COPY scripts/ ./scripts/
 
-EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s CMD curl -fsS http://localhost:8000/health || exit 1
+EXPOSE 8010
+HEALTHCHECK --interval=30s --timeout=5s CMD curl -fsS http://localhost:8010/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8010"]
 ```
 
 ### `.dockerignore`
@@ -274,7 +274,7 @@ The current scrape stack pulls in:
 
 For the API image, pin `GOOGLE_SEARCH_BACKEND=ddgs` and **do not** run `playwright install`. The image stays around 250 MB.
 
-If you ever need Playwright server-side, build a *second* image for the scrape worker only (Option B above). The API image stays small.
+If you ever need Playwright server-side, build a _second_ image for the scrape worker only (Option B above). The API image stays small.
 
 ## 9. CSRF / sessions
 

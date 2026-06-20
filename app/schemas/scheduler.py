@@ -53,6 +53,7 @@ class CleanupResult(BaseModel):
     marked_inactive: int
     errors: int
     duration_ms: int
+    linkedin_auth_invalid: bool = False
 
 
 class ScrapeProgress(BaseModel):
@@ -85,6 +86,40 @@ class SchedulerPageResponse(BaseModel):
     scrape_logs: list[ScrapeLogResponse]
     cleanup_last_run_at: Optional[datetime] = None
     cleanup_last_result: Optional[CleanupResult] = None
+    # Sources available to clean (distinct sources among active jobs) and the
+    # user's current selection. cleanup_sources is None when "all sources".
+    available_sources: list[str] = []
+    cleanup_sources: Optional[list[str]] = None
+    # Max jobs checked per run (oldest scraped first); None when no limit.
+    cleanup_limit: Optional[int] = None
+    # Skip jobs validated within the past N hours; None when not skipping.
+    cleanup_skip_validated_hours: Optional[int] = None
+
+
+class CleanupSourcesRequest(BaseModel):
+    sources: list[str]
+
+
+class CleanupSourcesResponse(BaseModel):
+    cleanup_sources: list[str]
+
+
+class CleanupLimitRequest(BaseModel):
+    # 0 (or omitted) means "no limit".
+    limit: int = 0
+
+
+class CleanupLimitResponse(BaseModel):
+    cleanup_limit: Optional[int] = None
+
+
+class CleanupSkipValidatedRequest(BaseModel):
+    # 0 (or omitted) means "don't skip".
+    hours: int = 0
+
+
+class CleanupSkipValidatedResponse(BaseModel):
+    cleanup_skip_validated_hours: Optional[int] = None
 
 
 class TaskStartedResponse(BaseModel):

@@ -11,7 +11,13 @@ from app.database import get_session
 from app.repository import JobRepository
 from app.scraper import run_scrape
 from app.schemas.scheduler import (
+    CleanupLimitRequest,
+    CleanupLimitResponse,
     CleanupResult,
+    CleanupSkipValidatedRequest,
+    CleanupSkipValidatedResponse,
+    CleanupSourcesRequest,
+    CleanupSourcesResponse,
     CleanupStateResponse,
     HistoryPageResponse,
     SchedulerPageResponse,
@@ -290,6 +296,7 @@ def scheduler_page(session: Session = Depends(get_session)):
             marked_inactive=cr.get("marked_inactive", 0),
             errors=cr.get("errors", 0),
             duration_ms=cr.get("duration_ms", 0),
+            linkedin_auth_invalid=cr.get("linkedin_auth_invalid", False),
         )
     return JSONResponse(SchedulerPageResponse(
         config=SchedulerStatusResponse(
@@ -301,6 +308,10 @@ def scheduler_page(session: Session = Depends(get_session)):
         scrape_logs=log_models,
         cleanup_last_run_at=cleanup_status.get("last_run_at"),
         cleanup_last_result=cleanup_result_model,
+        available_sources=repo.list_job_sources(),
+        cleanup_sources=repo.get_cleanup_sources(),
+        cleanup_limit=cfg.cleanup_limit,
+        cleanup_skip_validated_hours=cfg.cleanup_skip_validated_hours,
     ).model_dump(mode="json"))
 
 
@@ -372,6 +383,33 @@ def cleanup_run_now():
     return JSONResponse(TaskStartedResponse(started=started, message=msg).model_dump())
 
 
+@router.post("/cleanup/sources", response_model=CleanupSourcesResponse, tags=["scheduler"])
+def cleanup_set_sources(body: CleanupSourcesRequest, session: Session = Depends(get_session)):
+    """Persist which job sources the cleanup run (manual and scheduled) should check."""
+    repo = JobRepository(session)
+    repo.update_scheduler_config(cleanup_sources=body.sources)
+    saved = repo.get_cleanup_sources() or []
+    return JSONResponse(CleanupSourcesResponse(cleanup_sources=saved).model_dump())
+
+
+@router.post("/cleanup/limit", response_model=CleanupLimitResponse, tags=["scheduler"])
+def cleanup_set_limit(body: CleanupLimitRequest, session: Session = Depends(get_session)):
+    """Persist the max number of jobs checked per cleanup run (0 = no limit)."""
+    repo = JobRepository(session)
+    cfg = repo.update_scheduler_config(cleanup_limit=body.limit)
+    return JSONResponse(CleanupLimitResponse(cleanup_limit=cfg.cleanup_limit).model_dump())
+
+
+@router.post("/cleanup/skip-validated", response_model=CleanupSkipValidatedResponse, tags=["scheduler"])
+def cleanup_set_skip_validated(body: CleanupSkipValidatedRequest, session: Session = Depends(get_session)):
+    """Persist the skip-recently-validated window in hours (0 = don't skip)."""
+    repo = JobRepository(session)
+    cfg = repo.update_scheduler_config(cleanup_skip_validated_hours=body.hours)
+    return JSONResponse(
+        CleanupSkipValidatedResponse(cleanup_skip_validated_hours=cfg.cleanup_skip_validated_hours).model_dump()
+    )
+
+
 @router.get("/cleanup/status", response_model=CleanupStateResponse, tags=["scheduler"])
 def cleanup_status_poll():
     from app.services.cleanup_service import get_cleanup_status
@@ -384,6 +422,7 @@ def cleanup_status_poll():
             marked_inactive=cr.get("marked_inactive", 0),
             errors=cr.get("errors", 0),
             duration_ms=cr.get("duration_ms", 0),
+            linkedin_auth_invalid=cr.get("linkedin_auth_invalid", False),
         )
     return JSONResponse(CleanupStateResponse(
         running=bool(status["running"]),

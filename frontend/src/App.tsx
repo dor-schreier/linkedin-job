@@ -11,6 +11,8 @@ import JobDetail from './pages/JobDetail'
 import JobsList from './pages/JobsList'
 import History from './pages/History'
 import ApplicationTracker from './pages/ApplicationTracker'
+import SimilarSearch from './pages/SimilarSearch'
+import Companies from './pages/Companies'
 
 function App() {
   return (
@@ -29,6 +31,8 @@ function App() {
         <Route path="/profile/optimizer" element={<ProfileOptimizer />} />
         <Route path="/jobs" element={<JobsList />} />
         <Route path="/jobs/:id" element={<JobDetail />} />
+        <Route path="/similar" element={<SimilarSearch />} />
+        <Route path="/companies" element={<Companies />} />
       </Routes>
     </BrowserRouter>
   )

@@ -34,7 +34,7 @@ import { ObservabilityStack } from "../lib/observability-stack";
 const app = new cdk.App();
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
-  region:  process.env.CDK_DEFAULT_REGION ?? "us-east-1",
+  region: process.env.CDK_DEFAULT_REGION ?? "us-east-1",
 };
 
 const network = new NetworkStack(app, "LinkedinJobNetwork", { env });
@@ -77,19 +77,33 @@ export class NetworkStack extends cdk.Stack {
     this.vpc = new ec2.Vpc(this, "Vpc", {
       ipAddresses: ec2.IpAddresses.cidr("10.0.0.0/16"),
       maxAzs: 2,
-      natGateways: 0,                   // !! free-tier critical
+      natGateways: 0, // !! free-tier critical
       subnetConfiguration: [
-        { name: "public",  subnetType: ec2.SubnetType.PUBLIC,           cidrMask: 24 },
-        { name: "private", subnetType: ec2.SubnetType.PRIVATE_ISOLATED, cidrMask: 24 },
+        { name: "public", subnetType: ec2.SubnetType.PUBLIC, cidrMask: 24 },
+        {
+          name: "private",
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+          cidrMask: 24,
+        },
       ],
     });
 
-    this.webSg = new ec2.SecurityGroup(this, "WebSg", { vpc: this.vpc, allowAllOutbound: true });
+    this.webSg = new ec2.SecurityGroup(this, "WebSg", {
+      vpc: this.vpc,
+      allowAllOutbound: true,
+    });
     this.webSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80));
     this.webSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443));
 
-    this.dbSg = new ec2.SecurityGroup(this, "DbSg", { vpc: this.vpc, allowAllOutbound: true });
-    this.dbSg.addIngressRule(this.webSg, ec2.Port.tcp(5432), "Postgres from web SG");
+    this.dbSg = new ec2.SecurityGroup(this, "DbSg", {
+      vpc: this.vpc,
+      allowAllOutbound: true,
+    });
+    this.dbSg.addIngressRule(
+      this.webSg,
+      ec2.Port.tcp(5432),
+      "Postgres from web SG",
+    );
   }
 }
 ```
@@ -119,7 +133,10 @@ export class DataStack extends cdk.Stack {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_16,
       }),
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
+      instanceType: ec2.InstanceType.of(
+        ec2.InstanceClass.T3,
+        ec2.InstanceSize.MICRO,
+      ),
       vpc: props.vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       allocatedStorage: 20,
@@ -130,7 +147,7 @@ export class DataStack extends cdk.Stack {
       credentials: rds.Credentials.fromGeneratedSecret("linkedin_job"),
       securityGroups: [props.dbSecurityGroup],
       backupRetention: cdk.Duration.days(7),
-      deletionProtection: false,            // flip for prod
+      deletionProtection: false, // flip for prod
       removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
     });
   }
@@ -186,11 +203,17 @@ export class IdentityStack extends cdk.Stack {
       generateSecret: true,
       oAuth: {
         flows: { authorizationCodeGrant: true },
-        scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
+        scopes: [
+          cognito.OAuthScope.OPENID,
+          cognito.OAuthScope.EMAIL,
+          cognito.OAuthScope.PROFILE,
+        ],
         callbackUrls: ["https://app.example.com/auth/callback"],
-        logoutUrls:   ["https://app.example.com/"],
+        logoutUrls: ["https://app.example.com/"],
       },
-      supportedIdentityProviders: [cognito.UserPoolClientIdentityProvider.COGNITO],
+      supportedIdentityProviders: [
+        cognito.UserPoolClientIdentityProvider.COGNITO,
+      ],
     });
 
     this.cognito = { userPool, client, domain };
@@ -255,7 +278,10 @@ export class ComputeStack extends cdk.Stack {
       vpc: props.vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       associatePublicIpAddress: true,
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
+      instanceType: ec2.InstanceType.of(
+        ec2.InstanceClass.T3,
+        ec2.InstanceSize.MICRO,
+      ),
       machineImage: ecs.EcsOptimizedImage.amazonLinux2(),
       minCapacity: 1,
       maxCapacity: 1,
@@ -263,7 +289,9 @@ export class ComputeStack extends cdk.Stack {
     });
 
     cluster.addAsgCapacityProvider(
-      new ecs.AsgCapacityProvider(this, "CapacityProvider", { autoScalingGroup: asg })
+      new ecs.AsgCapacityProvider(this, "CapacityProvider", {
+        autoScalingGroup: asg,
+      }),
     );
 
     const logGroup = new logs.LogGroup(this, "LogGroup", {
@@ -282,23 +310,26 @@ export class ComputeStack extends cdk.Stack {
       cpu: 256,
       logging: ecs.LogDriver.awsLogs({ logGroup, streamPrefix: "api" }),
       environment: {
-        LLM_PROVIDER:        "groq",
-        COGNITO_REGION:      this.region,
-        COGNITO_USER_POOL:   props.cognito.userPool.userPoolId,
-        COGNITO_CLIENT_ID:   props.cognito.client.userPoolClientId,
-        COGNITO_DOMAIN:      props.cognito.domain.domainName,
+        LLM_PROVIDER: "groq",
+        COGNITO_REGION: this.region,
+        COGNITO_USER_POOL: props.cognito.userPool.userPoolId,
+        COGNITO_CLIENT_ID: props.cognito.client.userPoolClientId,
+        COGNITO_DOMAIN: props.cognito.domain.domainName,
       },
       secrets: {
-        DATABASE_URL:          ecs.Secret.fromSsmParameter(props.ssmParams.dbUrl),
-        GROQ_API_KEY:          ecs.Secret.fromSsmParameter(props.ssmParams.groq),
-        COGNITO_CLIENT_SECRET: ecs.Secret.fromSsmParameter(props.ssmParams.cognitoSecret),
+        DATABASE_URL: ecs.Secret.fromSsmParameter(props.ssmParams.dbUrl),
+        GROQ_API_KEY: ecs.Secret.fromSsmParameter(props.ssmParams.groq),
+        COGNITO_CLIENT_SECRET: ecs.Secret.fromSsmParameter(
+          props.ssmParams.cognitoSecret,
+        ),
       },
     });
 
-    container.addPortMappings({ containerPort: 8000, hostPort: 80 });
+    container.addPortMappings({ containerPort: 8010, hostPort: 80 });
 
     // Grant the task role read access to the SSM params
-    for (const p of Object.values(props.ssmParams)) p.grantRead(taskDef.taskRole);
+    for (const p of Object.values(props.ssmParams))
+      p.grantRead(taskDef.taskRole);
 
     new ecs.Ec2Service(this, "Service", {
       cluster,

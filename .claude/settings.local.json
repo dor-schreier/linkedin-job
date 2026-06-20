@@ -5,7 +5,7 @@
       "Bash(mkdir -p /c/Users/DorSchreier/.claude/skills)",
       "Bash(mv /c/Users/DorSchreier/Documents/GitHub/linkedin-job/.claude/skills/spec /c/Users/DorSchreier/.claude/skills/spec)",
       "Read(//c/Users/DorSchreier/.claude/skills/**)",
-      "Bash(curl -s http://localhost:8000/api/reject-rules)"
+      "Bash(curl -s http://localhost:8010/api/reject-rules)"
     ]
   }
 }

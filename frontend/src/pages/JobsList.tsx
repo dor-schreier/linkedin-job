@@ -6,6 +6,7 @@ import Layout from '../components/Layout'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import client from '../api/client'
+import { useToggleJobTarget } from '../api/queries'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -28,10 +29,14 @@ interface Job {
   is_rejected: boolean
   scraped_at: string
   sector?: string
+  subsector?: string
   company_type?: string
   required_skills: string[]
   tech_stack: string[]
   days_since_posted?: number
+  is_target: boolean
+  similarity_score?: number
+  similarity_breakdown_json?: string
 }
 
 interface Stats {
@@ -60,6 +65,9 @@ interface Filters {
   q: string
   title_include: string[]
   title_exclude: string[]
+  min_similarity: string
+  score_min: number
+  score_max: number
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -77,6 +85,9 @@ const DEFAULT_FILTERS: Filters = {
   q: '',
   title_include: [],
   title_exclude: [],
+  min_similarity: '',
+  score_min: 0,
+  score_max: 100,
 }
 
 // ── Queries ───────────────────────────────────────────────────────────────────
@@ -97,6 +108,9 @@ function useJobs(filters: Filters, page: number) {
   if (filters.q) params.set('q', filters.q)
   if (filters.title_include.length) params.set('title_include', filters.title_include.join(','))
   if (filters.title_exclude.length) params.set('title_exclude', filters.title_exclude.join(','))
+  if (filters.min_similarity) params.set('min_similarity', filters.min_similarity)
+  if (filters.score_min !== 0) params.set('min_score', String(filters.score_min))
+  if (filters.score_max !== 100) params.set('max_score', String(filters.score_max))
   params.set('page', String(page))
 
   return useQuery({
@@ -157,6 +171,33 @@ function FitPill({ score }: { score?: number }) {
   if (score == null) return <span className="text-xs text-outline">—</span>
   const color = score >= 80 ? 'bg-success/15 text-success' : score >= 60 ? 'bg-warning/15 text-warning' : score >= 40 ? 'bg-warning/10 text-warning/70' : 'bg-error/15 text-error'
   return <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${color}`}>{score}</span>
+}
+
+function SimilarityPill({ job }: { job: Job }) {
+  const score = job.similarity_score!
+  const color = score >= 70 ? 'bg-primary/15 text-primary' : score >= 40 ? 'bg-warning/15 text-warning' : 'bg-surface-container text-outline'
+  let breakdown: Record<string, { raw: number; weight: number; contribution: number }> = {}
+  try { breakdown = JSON.parse(job.similarity_breakdown_json || '{}') } catch { /* ignore */ }
+  const hasBD = Object.keys(breakdown).length > 0
+  return (
+    <div className="relative group inline-block">
+      <div className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold cursor-default ${color}`}>
+        <span className="material-symbols-outlined" style={{ fontSize: 10 }}>my_location</span>
+        {score}
+      </div>
+      {hasBD && (
+        <div className="absolute right-0 top-full mt-1 z-20 hidden group-hover:block bg-surface-container-low rounded-xl shadow-lg border border-outline-variant/20 p-2 min-w-[160px]">
+          <p className="text-[9px] font-bold uppercase tracking-wide text-outline mb-1.5">Similarity breakdown</p>
+          {Object.entries(breakdown).map(([dim, d]) => (
+            <div key={dim} className="flex justify-between gap-3 text-[10px] py-0.5">
+              <span className="text-on-surface-variant capitalize">{dim}</span>
+              <span className="font-semibold text-on-surface">{Math.round(d.raw * 100)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function StarRating({ value, onRate }: { value?: number | null; onRate: (r: number | null) => void }) {
@@ -384,6 +425,44 @@ function TitleFiltersInput({
   )
 }
 
+function ScoreRangeSlider({
+  scoreMin,
+  scoreMax,
+  onMinChange,
+  onMaxChange,
+}: {
+  scoreMin: number
+  scoreMax: number
+  onMinChange: (v: number) => void
+  onMaxChange: (v: number) => void
+}) {
+  return (
+    <div className="relative flex items-center w-28 h-5">
+      {/* Visible track */}
+      <div className="absolute inset-x-0 h-1 rounded-full bg-outline-variant/30 mx-1" />
+      {/* Active range highlight */}
+      <div
+        className="absolute h-1 rounded-full bg-primary/50"
+        style={{ left: `${scoreMin}%`, right: `${100 - scoreMax}%` }}
+      />
+      <input
+        type="range" min={0} max={100} step={1}
+        value={scoreMin}
+        onChange={(e) => onMinChange(Math.min(Number(e.target.value), scoreMax))}
+        className="score-range-input"
+        style={{ zIndex: scoreMin === scoreMax ? 5 : 3 }}
+      />
+      <input
+        type="range" min={0} max={100} step={1}
+        value={scoreMax}
+        onChange={(e) => onMaxChange(Math.max(Number(e.target.value), scoreMin))}
+        className="score-range-input"
+        style={{ zIndex: 4 }}
+      />
+    </div>
+  )
+}
+
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'All Statuses' },
   { value: 'new', label: 'NEW' },
@@ -396,8 +475,10 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
 ]
 const SORT_OPTIONS = [
   { value: 'fit_desc', label: 'Best Fit First' },
+  { value: 'similarity_desc', label: 'Similarity ↓' },
   { value: 'freshest', label: 'Freshest First' },
   { value: 'scraped_desc', label: 'Recently Scraped' },
+  { value: 'scraped_asc', label: 'First Scraped' },
   { value: 'date_posted_asc', label: 'Date Posted ↑' },
   { value: 'rating_desc', label: 'Top Rated' },
   { value: 'fit_asc', label: 'Worst Fit First' },
@@ -430,6 +511,7 @@ export default function JobsList() {
   const { data, isLoading, error } = useJobs(filters, page)
   const updateStatus = useUpdateStatus()
   const rateJob = useRateJob()
+  const toggleTarget = useToggleJobTarget()
   const filterOptions = useFilterOptions()
 
   useEffect(() => {
@@ -608,6 +690,30 @@ export default function JobsList() {
                 setSelectedIds(new Set())
               }}
             />
+            <div className="flex items-center gap-1.5 bg-surface-container-low rounded-lg px-2.5 py-2">
+              <span className="material-symbols-outlined text-outline" style={{ fontSize: 14 }}>my_location</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="Min sim"
+                value={filters.min_similarity}
+                onChange={(e) => setFilter('min_similarity', e.target.value)}
+                className="w-14 bg-transparent border-none text-sm text-on-surface placeholder:text-outline focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-2 bg-surface-container-low rounded-lg px-3 py-2">
+              <span className="text-xs text-outline whitespace-nowrap">Fit Score</span>
+              <ScoreRangeSlider
+                scoreMin={filters.score_min}
+                scoreMax={filters.score_max}
+                onMinChange={(v) => setFilter('score_min', v)}
+                onMaxChange={(v) => setFilter('score_max', v)}
+              />
+              <span className={`text-xs font-semibold whitespace-nowrap ${filters.score_min !== 0 || filters.score_max !== 100 ? 'text-primary' : 'text-on-surface-variant'}`}>
+                {filters.score_min}–{filters.score_max}
+              </span>
+            </div>
           </div>
           {/* Toggle filters */}
           <div className="flex flex-wrap gap-2 text-xs">
@@ -727,7 +833,16 @@ export default function JobsList() {
 
                   {/* Job info */}
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-on-surface truncate">{job.title}</p>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleTarget.mutate({ jobId: job.id, isTarget: !job.is_target }) }}
+                        className={`shrink-0 transition-colors ${job.is_target ? 'text-primary' : 'text-outline hover:text-primary'}`}
+                        title={job.is_target ? 'Unmark target' : 'Mark as target'}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: `'FILL' ${job.is_target ? 1 : 0}` }}>my_location</span>
+                      </button>
+                      <p className="text-sm font-semibold text-on-surface truncate">{job.title}</p>
+                    </div>
                     <p className="text-xs text-on-surface-variant truncate">
                       {job.company}
                       {job.location ? ` · ${job.location}` : ''}
@@ -735,6 +850,7 @@ export default function JobsList() {
                     <div className="flex gap-1.5 mt-1 flex-wrap">
                       <Badge>{job.source}</Badge>
                       {job.sector && <Badge color="blue">{job.sector}</Badge>}
+                      {job.subsector && <Badge color="blue">{job.subsector}</Badge>}
                       {!job.is_active && <Badge color="default">Inactive</Badge>}
                     </div>
                     {((job.required_skills?.length ?? 0) > 0 || (job.tech_stack?.length ?? 0) > 0) && (
@@ -753,8 +869,9 @@ export default function JobsList() {
                   </div>
 
                   {/* Fit score */}
-                  <div className="text-right pt-0.5">
+                  <div className="text-right pt-0.5 space-y-1">
                     <FitPill score={job.fit_score} />
+                    {job.similarity_score != null && <SimilarityPill job={job} />}
                   </div>
 
                   {/* Status */}

@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -92,10 +93,14 @@ def _job_to_response_dict(job) -> dict:
         "applied_at": job.applied_at.isoformat() if job.applied_at else None,
         "scraped_at": job.scraped_at.isoformat() if job.scraped_at else None,
         "sector": (_nonempty(job.company_info.sector) if job.company_info else None),
+        "subsector": (_nonempty(job.company_info.subsector) if job.company_info else None),
         "company_type": (_nonempty(job.company_info.company_type) if job.company_info else None),
         "required_skills": intelligence.get("required_skills") or [],
         "tech_stack": intelligence.get("tech_stack") or [],
         "days_since_posted": _days_since_posted(job),
+        "is_target": bool(job.is_target),
+        "similarity_score": job.similarity_score,
+        "similarity_breakdown_json": job.similarity_breakdown_json,
     }
 
 
@@ -117,6 +122,10 @@ def jobs_list(
     q: Optional[str] = None,
     title_include: Optional[str] = None,
     title_exclude: Optional[str] = None,
+    min_similarity: Optional[str] = None,
+    min_score: Optional[str] = None,
+    max_score: Optional[str] = None,
+    valid_only: Optional[str] = None,
     page: int = 1,
     db: Session = Depends(get_session),
 ):
@@ -153,7 +162,29 @@ def jobs_list(
     hide_rated_bool = hide_rated == "1"
     show_inactive_bool = show_inactive == "1"
     include_rejected_bool = include_rejected == "1"
-    sort_val = sort if sort in ("freshest", "fit_desc", "fit_asc", "rating_desc", "date_posted_asc") else None
+    valid_only_bool = valid_only == "1"
+    sort_val = sort if sort in ("freshest", "fit_desc", "fit_asc", "rating_desc", "date_posted_asc", "scraped_desc", "scraped_asc", "similarity_desc") else None
+
+    min_similarity_int: Optional[int] = None
+    if min_similarity:
+        try:
+            min_similarity_int = int(min_similarity)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="min_similarity must be an integer")
+
+    min_score_int: Optional[int] = None
+    if min_score:
+        try:
+            min_score_int = int(min_score)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="min_score must be an integer")
+
+    max_score_int: Optional[int] = None
+    if max_score:
+        try:
+            max_score_int = int(max_score)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="max_score must be an integer")
 
     offset = (page - 1) * PAGE_SIZE
     jobs = repo.list_jobs(
@@ -173,6 +204,10 @@ def jobs_list(
         search_text=q or None,
         title_include=title_include_list,
         title_exclude=title_exclude_list,
+        min_similarity=min_similarity_int,
+        min_score=min_score_int,
+        max_score=max_score_int,
+        valid_only=valid_only_bool,
         limit=PAGE_SIZE,
         offset=offset,
     )
@@ -192,6 +227,9 @@ def jobs_list(
         search_text=q or None,
         title_include=title_include_list,
         title_exclude=title_exclude_list,
+        min_similarity=min_similarity_int,
+        min_score=min_score_int,
+        max_score=max_score_int,
     )
     has_more = (offset + PAGE_SIZE) < total
 
@@ -418,6 +456,21 @@ def add_job_by_url(body: AddJobByUrlRequest, db: Session = Depends(get_session))
     return JSONResponse({"job_id": job.id, "created": True})
 
 
+class TargetRequest(BaseModel):
+    is_target: bool
+
+
+@router.post("/jobs/{job_id}/target", tags=["jobs"])
+def set_job_target(job_id: int, body: TargetRequest, db: Session = Depends(get_session)):
+    if job_id <= 0:
+        raise HTTPException(status_code=422, detail="Invalid job_id")
+    repo = JobRepository(db)
+    job = repo.set_job_target(job_id, body.is_target)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return JSONResponse(_job_to_response_dict(job))
+
+
 @router.get("/jobs/{job_id}", response_model=JobDetailResponse, tags=["jobs"])
 def job_detail(job_id: int, db: Session = Depends(get_session)):
     if job_id <= 0:
@@ -459,6 +512,72 @@ def job_detail(job_id: int, db: Session = Depends(get_session)):
         intelligence=intel_model,
         breakdown=bd_model,
     ).model_dump(mode="json"))
+
+
+class CoverLetterPdfRequest(BaseModel):
+    text: str
+
+
+@router.post("/jobs/{job_id}/cover-letter/pdf", tags=["jobs"])
+def export_cover_letter_pdf(job_id: int, body: CoverLetterPdfRequest, db: Session = Depends(get_session)):
+    if job_id <= 0:
+        raise HTTPException(status_code=422, detail="Invalid job_id")
+    if not body.text.strip():
+        raise HTTPException(status_code=422, detail="text is required")
+    repo = JobRepository(db)
+    job = repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    try:
+        from app.services.cv_renderer import render_cover_letter_pdf
+        from fastapi.responses import Response as FastAPIResponse
+        pdf_bytes = render_cover_letter_pdf(body.text, title=job.title or "", company=job.company or "")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"PDF rendering failed: {exc}")
+    company_slug = re.sub(r"[^A-Za-z0-9]+", "_", job.company or "").strip("_")
+    filename = f"{company_slug}_Cover_Letter.pdf" if company_slug else f"job_{job_id}_cover_letter.pdf"
+    return FastAPIResponse(pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@router.post("/jobs/{job_id}/cover-letter/docx", tags=["jobs"])
+def export_cover_letter_docx(job_id: int, body: CoverLetterPdfRequest, db: Session = Depends(get_session)):
+    if job_id <= 0:
+        raise HTTPException(status_code=422, detail="Invalid job_id")
+    if not body.text.strip():
+        raise HTTPException(status_code=422, detail="text is required")
+    repo = JobRepository(db)
+    job = repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    try:
+        from app.services.cv_renderer import render_cover_letter_docx
+        from fastapi.responses import Response as FastAPIResponse
+        docx_bytes = render_cover_letter_docx(body.text, title=job.title or "", company=job.company or "")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"DOCX rendering failed: {exc}")
+    company_slug = re.sub(r"[^A-Za-z0-9]+", "_", job.company or "").strip("_")
+    filename = f"{company_slug}_Cover_Letter.docx" if company_slug else f"job_{job_id}_cover_letter.docx"
+    return FastAPIResponse(
+        docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/jobs/{job_id}/cover-letter", tags=["jobs"])
+def generate_cover_letter(job_id: int, db: Session = Depends(get_session)):
+    if job_id <= 0:
+        raise HTTPException(status_code=422, detail="Invalid job_id")
+    repo = JobRepository(db)
+    job = repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    profile = repo.get_profile()
+    uploaded = repo.get_latest_uploaded_cv()
+    text = groq_service.generate_cover_letter(job, profile, uploaded)
+    if not text:
+        raise HTTPException(status_code=500, detail="Cover letter generation failed. Check LLM configuration.")
+    return JSONResponse({"cover_letter": text})
 
 
 @router.post("/jobs/{job_id}/reextract", response_model=JobIntelligenceResponse, tags=["jobs"])

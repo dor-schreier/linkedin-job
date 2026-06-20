@@ -1,10 +1,14 @@
-from datetime import date, datetime, timezone
+import json
+import os
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from app.models import Company, CVRecord, Interview, Job, JobStatus, LinkedInProfileRaw, Notification, Profile, ProfileEducation, ProfileExperience, RejectAuditLog, RejectRule, SchedulerConfig, ScrapeLog, SearchConfig, TailoredCV, UploadedCV, WatchRule
+VALID_JOB_MAX_AGE_DAYS: int = int(os.environ.get("VALID_JOB_MAX_AGE_DAYS", 60))
+
+from app.models import Company, CVRecord, Interview, Job, JobStatus, LinkedInProfileRaw, Notification, Profile, ProfileEducation, ProfileExperience, RejectAuditLog, RejectRule, SchedulerConfig, ScrapeLog, SearchConfig, SimilarityWeights, TailoredCV, UploadedCV, WatchRule
 
 
 class JobRepository:
@@ -14,6 +18,19 @@ class JobRepository:
         self.session = session
 
     # --- Jobs ---
+
+    def _valid_posting_filters(self) -> list:
+        """Return SQLAlchemy filter clauses that define a 'valid' posting.
+
+        Valid = apply_url present, and age within VALID_JOB_MAX_AGE_DAYS
+        (using COALESCE(date_posted, scraped_at) since date_posted is often null).
+        """
+        cutoff = datetime.utcnow() - timedelta(days=VALID_JOB_MAX_AGE_DAYS)
+        return [
+            Job.apply_url.isnot(None),
+            Job.apply_url != "",
+            func.coalesce(Job.date_posted, Job.scraped_at) >= cutoff,
+        ]
 
     def add_job(self, **kwargs) -> Job:
         """Insert a job. Caller must provide job_hash. Returns the created Job."""
@@ -44,6 +61,10 @@ class JobRepository:
         search_text: Optional[str] = None,
         title_include: Optional[list[str]] = None,
         title_exclude: Optional[list[str]] = None,
+        min_similarity: Optional[int] = None,
+        min_score: Optional[int] = None,
+        max_score: Optional[int] = None,
+        valid_only: bool = False,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Job]:
@@ -90,6 +111,14 @@ class JobRepository:
                 q = q.filter(Company.sector.in_(sector))
             if company_type:
                 q = q.filter(Company.company_type == company_type)
+        if min_similarity is not None:
+            q = q.filter(Job.similarity_score >= min_similarity)
+        if min_score is not None:
+            q = q.filter(Job.fit_score >= min_score)
+        if max_score is not None:
+            q = q.filter(Job.fit_score <= max_score)
+        if valid_only:
+            q = q.filter(*self._valid_posting_filters())
         if sort == "freshest":
             q = q.order_by(Job.date_posted.desc().nullslast(), Job.scraped_at.desc())
         elif sort == "fit_desc":
@@ -102,6 +131,10 @@ class JobRepository:
             q = q.order_by(Job.date_posted.asc().nullslast(), Job.scraped_at.asc())
         elif sort == "scraped_desc":
             q = q.order_by(Job.scraped_at.desc())
+        elif sort == "scraped_asc":
+            q = q.order_by(Job.scraped_at.asc())
+        elif sort == "similarity_desc":
+            q = q.order_by(Job.similarity_score.desc().nullslast(), Job.scraped_at.desc())
         else:
             q = q.order_by(Job.scraped_at.desc())
         return q.offset(offset).limit(limit).all()
@@ -123,6 +156,9 @@ class JobRepository:
         search_text: Optional[str] = None,
         title_include: Optional[list[str]] = None,
         title_exclude: Optional[list[str]] = None,
+        min_similarity: Optional[int] = None,
+        min_score: Optional[int] = None,
+        max_score: Optional[int] = None,
     ) -> int:
         q = self.session.query(Job)
         if not show_inactive:
@@ -167,6 +203,12 @@ class JobRepository:
                 q = q.filter(Company.sector.in_(sector))
             if company_type:
                 q = q.filter(Company.company_type == company_type)
+        if min_similarity is not None:
+            q = q.filter(Job.similarity_score >= min_similarity)
+        if min_score is not None:
+            q = q.filter(Job.fit_score >= min_score)
+        if max_score is not None:
+            q = q.filter(Job.fit_score <= max_score)
         return q.count()
 
     def count_active_jobs(self) -> int:
@@ -239,6 +281,34 @@ class JobRepository:
             .all()
         )
         return [r[0] for r in rows]
+
+    def get_distinct_subsectors(self) -> list[str]:
+        rows = (
+            self.session.query(Company.subsector)
+            .filter(
+                Company.subsector.isnot(None),
+                Company.subsector != "",
+            )
+            .distinct()
+            .order_by(Company.subsector)
+            .all()
+        )
+        return [r[0] for r in rows]
+
+    def update_company_sector(
+        self,
+        company_id: int,
+        sector: Optional[str],
+        subsector: Optional[str],
+    ) -> Optional[Company]:
+        company = self.session.query(Company).filter(Company.id == company_id).first()
+        if company is None:
+            return None
+        company.sector = sector if sector else None
+        company.subsector = subsector if subsector else None
+        self.session.commit()
+        self.session.refresh(company)
+        return company
 
     def get_distinct_company_types(self) -> list[str]:
         rows = (
@@ -327,30 +397,71 @@ class JobRepository:
     def count_jobs(self) -> int:
         return self.session.query(Job).filter(Job.is_active == True).count()  # noqa: E712
 
-    def list_active_jobs_for_cleanup(self) -> list[Job]:
-        """Return all active jobs that have an apply_url to check."""
-        return (
+    def list_active_jobs_for_cleanup(
+        self,
+        sources: Optional[list[str]] = None,
+        limit: Optional[int] = None,
+        skip_validated_hours: Optional[int] = None,
+    ) -> list[Job]:
+        """Return active jobs with an apply_url to check, oldest scraped first.
+
+        If `sources` is given, only jobs from those sources are returned
+        (None means all sources). If `skip_validated_hours` is given (>0), jobs
+        whose `last_validated_at` falls within that window are excluded (jobs
+        never validated are always included). If `limit` is given (>0), at most
+        that many jobs are returned — the oldest by `scraped_at`.
+        """
+        from datetime import datetime, timedelta, timezone
+        query = (
             self.session.query(Job)
             .filter(Job.is_active == True, Job.apply_url.isnot(None))  # noqa: E712
-            .order_by(Job.last_checked_at.asc().nullsfirst())
+        )
+        if sources is not None:
+            query = query.filter(Job.source.in_(sources))
+        if skip_validated_hours is not None and skip_validated_hours > 0:
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=skip_validated_hours)
+            query = query.filter(
+                or_(Job.last_validated_at.is_(None), Job.last_validated_at < cutoff)
+            )
+        query = query.order_by(Job.scraped_at.asc())
+        if limit is not None and limit > 0:
+            query = query.limit(limit)
+        return query.all()
+
+    def list_job_sources(self) -> list[str]:
+        """Return the distinct sources present among active jobs, sorted."""
+        rows = (
+            self.session.query(Job.source)
+            .filter(Job.is_active == True, Job.source.isnot(None))  # noqa: E712
+            .distinct()
             .all()
         )
+        return sorted(r[0] for r in rows if r[0])
 
     def mark_job_inactive(self, job_id: int, checked_at=None) -> Optional[Job]:
         from datetime import datetime, timezone
         job = self.session.get(Job, job_id)
         if job:
+            now = checked_at or datetime.now(timezone.utc)
             job.is_active = False
-            job.last_checked_at = checked_at or datetime.now(timezone.utc)
+            job.last_checked_at = now
+            # Inactive is a definitive verdict — record validation.
+            job.last_validated_at = now
             self.session.commit()
             self.session.refresh(job)
         return job
 
-    def update_job_checked_at(self, job_id: int, checked_at=None) -> Optional[Job]:
+    def update_job_checked_at(self, job_id: int, checked_at=None, validated: bool = False) -> Optional[Job]:
+        """Record a cleanup check. If `validated`, the verdict was definitive
+        (job confirmed active) and last_validated_at is stamped too; blocked/
+        unknown checks pass validated=False so the job is retried next batch."""
         from datetime import datetime, timezone
         job = self.session.get(Job, job_id)
         if job:
-            job.last_checked_at = checked_at or datetime.now(timezone.utc)
+            now = checked_at or datetime.now(timezone.utc)
+            job.last_checked_at = now
+            if validated:
+                job.last_validated_at = now
             self.session.commit()
         return job
 
@@ -404,6 +515,7 @@ class JobRepository:
         name_normalized: str,
         name_display: str,
         sector: Optional[str] = None,
+        subsector: Optional[str] = None,
         company_type: Optional[str] = None,
         what_they_do: Optional[str] = None,
     ) -> Company:
@@ -411,6 +523,8 @@ class JobRepository:
         if company:
             if sector is not None:
                 company.sector = sector
+            if subsector is not None:
+                company.subsector = subsector
             if company_type is not None:
                 company.company_type = company_type
             if what_they_do is not None:
@@ -421,6 +535,7 @@ class JobRepository:
                 name_normalized=name_normalized,
                 name_display=name_display,
                 sector=sector,
+                subsector=subsector,
                 company_type=company_type,
                 what_they_do=what_they_do,
                 enriched_at=datetime.utcnow(),
@@ -429,6 +544,78 @@ class JobRepository:
         self.session.commit()
         self.session.refresh(company)
         return company
+
+    def get_companies_with_active_jobs(self) -> list[dict]:
+        """Return flat company records with per-location valid job counts.
+
+        Includes companies whose jobs have no linked Company row (metadata nulled).
+        Valid = is_active True, is_rejected False, apply_url present, not stale.
+        """
+        rows = (
+            self.session.query(
+                Job.company,
+                Job.company_id,
+                Job.location,
+                Job.scraped_at,
+                Company.name_display,
+                Company.sector,
+                Company.subsector,
+                Company.company_type,
+                Company.what_they_do,
+            )
+            .outerjoin(Company, Job.company_id == Company.id)
+            .filter(
+                Job.is_active == True,    # noqa: E712
+                Job.is_rejected == False,  # noqa: E712
+                *self._valid_posting_filters(),
+            )
+            .all()
+        )
+
+        # Aggregate per-company: key is company_id if set, else job.company string
+        companies: dict[str, dict] = {}
+        for row in rows:
+            key = str(row.company_id) if row.company_id else f"__str__{row.company}"
+            if key not in companies:
+                companies[key] = {
+                    "name_display": row.name_display or row.company,
+                    "company": row.company,
+                    "company_id": row.company_id,
+                    "sector": row.sector,
+                    "subsector": row.subsector,
+                    "company_type": row.company_type,
+                    "what_they_do": row.what_they_do,
+                    "total_active_jobs": 0,
+                    "locations": {},
+                    "last_scraped_at": None,
+                }
+            companies[key]["total_active_jobs"] += 1
+            loc = row.location or "Unknown / Unspecified"
+            companies[key]["locations"][loc] = companies[key]["locations"].get(loc, 0) + 1
+            if row.scraped_at is not None:
+                prev = companies[key]["last_scraped_at"]
+                if prev is None or row.scraped_at > prev:
+                    companies[key]["last_scraped_at"] = row.scraped_at
+
+        result = []
+        for c in companies.values():
+            result.append({
+                "name_display": c["name_display"],
+                "company": c["company"],
+                "company_id": c["company_id"],
+                "sector": c["sector"],
+                "subsector": c["subsector"],
+                "company_type": c["company_type"],
+                "what_they_do": c["what_they_do"],
+                "total_active_jobs": c["total_active_jobs"],
+                "last_scraped_at": c["last_scraped_at"].isoformat() if c["last_scraped_at"] else None,
+                "location_breakdown": [
+                    {"location": loc, "count": cnt}
+                    for loc, cnt in c["locations"].items()
+                ],
+            })
+
+        return sorted(result, key=lambda x: x["name_display"].lower())
 
     def get_companies_for_reenrichment(self, limit: int = 20) -> list[Company]:
         """Return Company records ordered by enriched_at ascending (NULLs first), up to limit."""
@@ -774,15 +961,44 @@ class JobRepository:
             self.session.refresh(cfg)
         return cfg
 
-    def update_scheduler_config(self, interval_hours: Optional[int] = None, is_enabled: Optional[bool] = None) -> SchedulerConfig:
+    def update_scheduler_config(
+        self,
+        interval_hours: Optional[int] = None,
+        is_enabled: Optional[bool] = None,
+        cleanup_sources: Optional[list[str]] = None,
+        cleanup_limit: Optional[int] = None,
+        cleanup_skip_validated_hours: Optional[int] = None,
+    ) -> SchedulerConfig:
         cfg = self.get_scheduler_config()
         if interval_hours is not None:
             cfg.interval_hours = interval_hours
         if is_enabled is not None:
             cfg.is_enabled = is_enabled
+        if cleanup_sources is not None:
+            # Empty list is stored as "[]" (check nothing); NULL keeps "all sources".
+            cfg.cleanup_sources = json.dumps(cleanup_sources)
+        if cleanup_limit is not None:
+            # 0 (or negative) clears the limit back to "no limit" (NULL).
+            cfg.cleanup_limit = cleanup_limit if cleanup_limit > 0 else None
+        if cleanup_skip_validated_hours is not None:
+            # 0 (or negative) clears the skip window back to "don't skip" (NULL).
+            cfg.cleanup_skip_validated_hours = (
+                cleanup_skip_validated_hours if cleanup_skip_validated_hours > 0 else None
+            )
         self.session.commit()
         self.session.refresh(cfg)
         return cfg
+
+    def get_cleanup_sources(self) -> Optional[list[str]]:
+        """Parse the persisted cleanup source list. None means all sources."""
+        cfg = self.get_scheduler_config()
+        if not cfg.cleanup_sources:
+            return None
+        try:
+            value = json.loads(cfg.cleanup_sources)
+            return value if isinstance(value, list) else None
+        except (ValueError, TypeError):
+            return None
 
     def notification_exists(self, job_id: int, watch_rule_id: int) -> bool:
         return (
@@ -1015,6 +1231,44 @@ class JobRepository:
         self.session.commit()
         self.session.refresh(record)
         return record
+
+    # --- Similarity ---
+
+    def set_job_target(self, job_id: int, value: bool) -> Optional[Job]:
+        job = self.session.get(Job, job_id)
+        if job:
+            job.is_target = value
+            self.session.commit()
+            self.session.refresh(job)
+        return job
+
+    def list_target_jobs(self) -> list[Job]:
+        return self.session.query(Job).filter(Job.is_target == True).all()  # noqa: E712
+
+    def get_similarity_weights(self) -> SimilarityWeights:
+        weights = self.session.query(SimilarityWeights).first()
+        if not weights:
+            weights = SimilarityWeights()
+            self.session.add(weights)
+            self.session.commit()
+            self.session.refresh(weights)
+        return weights
+
+    def update_similarity_weights(self, **fields) -> SimilarityWeights:
+        weights = self.get_similarity_weights()
+        for k, v in fields.items():
+            setattr(weights, k, v)
+        self.session.commit()
+        self.session.refresh(weights)
+        return weights
+
+    def set_job_similarity(self, job_id: int, score: int, breakdown: str) -> Optional[Job]:
+        job = self.session.get(Job, job_id)
+        if job:
+            job.similarity_score = score
+            job.similarity_breakdown_json = breakdown
+            self.session.commit()
+        return job
 
     def delete_tailored_cv(self, job_id: int) -> bool:
         record = self.session.query(TailoredCV).filter(TailoredCV.job_id == job_id).first()

@@ -1,6 +1,7 @@
-import { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useUnreadCount } from '../api/queries'
+import InfoModal from './InfoModal'
 
 interface Props {
   children: ReactNode
@@ -15,6 +16,8 @@ const navItems = [
   { key: 'profile-optimizer', href: '/profile/optimizer', icon: 'auto_awesome', label: 'Profile Optimizer' },
   { key: 'watch-rules', href: '/watch-rules', icon: 'rule', label: 'Watch Rules' },
   { key: 'reject-rules', href: '/reject-rules', icon: 'block', label: 'Reject Rules' },
+  { key: 'companies', href: '/companies', icon: 'apartment', label: 'Companies' },
+  { key: 'similar', href: '/similar', icon: 'my_location', label: 'Similar Search' },
   { key: 'applications', href: '/applications', icon: 'view_kanban', label: 'Applications' },
   { key: 'scheduler', href: '/scheduler', icon: 'schedule', label: 'Scheduler' },
   { key: 'history', href: '/history', icon: 'history', label: 'History' },
@@ -39,6 +42,7 @@ export default function Layout({ children, title, active, headerRight }: Props) 
   const sidebarRef = useRef<HTMLElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const { data: unreadData } = useUnreadCount()
 
@@ -221,9 +225,19 @@ export default function Layout({ children, title, active, headerRight }: Props) 
       >
         <header className="shrink-0 z-50 bg-surface/80 backdrop-blur-md px-8 py-4 border-b border-outline-variant/15 flex items-center justify-between">
           <h2 className="text-xl font-bold font-headline">{title}</h2>
-          {headerRight && <div>{headerRight}</div>}
+          <div className="flex items-center gap-2">
+            {headerRight && <div>{headerRight}</div>}
+            <button
+              onClick={() => setInfoOpen(true)}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant hover:text-on-surface"
+              aria-label="App guide"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>info</span>
+            </button>
+          </div>
         </header>
-        <div className="px-8 py-6 flex-1 overflow-y-auto flex flex-col">{children}</div>
+        {infoOpen && <InfoModal onClose={() => setInfoOpen(false)} />}
+        <div id="main-scroll" className="px-8 py-6 flex-1 overflow-y-auto flex flex-col">{children}</div>
       </div>
     </div>
   )

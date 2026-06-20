@@ -7,7 +7,7 @@ import re
 import pytest
 from playwright.sync_api import Page, expect
 
-BASE = "http://localhost:8000"
+BASE = "http://localhost:8010"
 PAGES = [
     ("/jobs",          "jobs"),
     ("/profile",       "profile"),

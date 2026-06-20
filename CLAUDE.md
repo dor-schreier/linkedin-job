@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Run the app
-uvicorn app.main:app --reload --reload-dir app --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --reload-dir app --host 0.0.0.0 --port 8010
 
 # Run tests
 pytest tests/
@@ -30,6 +30,7 @@ python backfill_enrichment.py
 Self-hosted job search automation platform. FastAPI backend with Jinja2/HTMX frontend, SQLite storage, APScheduler for background scrapes, and provider-agnostic LLM integration (Groq cloud or Ollama local).
 
 **Data flow:**
+
 1. `app/scraper.py` — Calls JobSpy (LinkedIn/Indeed/Glassdoor), filters, deduplicates by SHA256(title+company+location), inserts into DB
 2. `app/services/llm_service.py` — Scores jobs (fit_score 0–100) and extracts intelligence (skills, red_flags, company summaries) via LLM; abstracts Groq vs Ollama using OpenAI-compatible SDK
 3. `app/repository.py` — All DB queries go through `JobRepository`; no raw SQL in routes
@@ -37,6 +38,7 @@ Self-hosted job search automation platform. FastAPI backend with Jinja2/HTMX fro
 5. `app/services/scheduler.py` — APScheduler runs `run_scrape()` on interval (default 6h); uses `threading.Lock` to prevent concurrent scrapes
 
 **Key models** (SQLite, auto-migrated in `app/database.py`):
+
 - `Job` — core record; `status` enum (NEW/SAVED/APPLIED/INTERVIEWING/OFFER/REJECTED), `is_rejected` bool kept in sync via SQLAlchemy validators, JSON blobs for `intelligence_json` and `score_breakdown_json`
 - `Company` — enriched with `sector`, `company_type`, `what_they_do`
 - `Profile` — user skills/title/experience; drives LLM fit scoring
@@ -45,6 +47,7 @@ Self-hosted job search automation platform. FastAPI backend with Jinja2/HTMX fro
 - `WatchRule` / `Notification` — alert rules that fire when scraped jobs match criteria
 
 **LLM provider config** (`.env`):
+
 ```
 LLM_PROVIDER=ollama|groq|vertexai
 GROQ_API_KEY=...
@@ -60,6 +63,7 @@ VERTEX_LLM_RECOMMEND_MODEL=gemini-2.5-flash # default; LLM_PROVIDER=vertexai onl
 **Schema migrations** are in `app/database.py` — `ALTER TABLE` wrapped in try/except for idempotency. Add new columns there, not as separate migration files.
 
 **Comeet search backend config** (`.env`):
+
 ```
 GOOGLE_SEARCH_BACKEND=vertex     # default; options: vertex | vertexai | cse | ddgs | google | playwright | serpapi
 GOOGLE_CLOUD_PROJECT=            # GCP project ID
@@ -70,6 +74,7 @@ GOOGLE_APPLICATION_CREDENTIALS=  # path to service account JSON (omit to use ADC
 GOOGLE_CSE_KEY=                  # legacy — existing CSE customers only (closed to new signups)
 GOOGLE_CSE_CX=                   # legacy — Programmable Search Engine ID
 ```
+
 - **Vertex AI Search setup**: create a Web App data store in GCP → Vertex AI Agent Builder, restrict it to `comeet.com/*`, grant `Discovery Engine Viewer` to your service account, then set the four `GOOGLE_*` / `VERTEX_AI_*` vars above (or use `gcloud auth application-default login` for ADC).
 - **CSE is closed to new customers** (as of 2025). Existing customers may continue using it until January 1, 2027.
 - Fallback chain (automatic): configured primary → GoogleScrapeBackend → PlaywrightGoogleBackend. `DdgsBackend` is still selectable via `GOOGLE_SEARCH_BACKEND=ddgs` but is no longer in the automatic fallback chain.
@@ -81,6 +86,7 @@ Session logs are written to `logs/app-YYYYMMDD-HHMMSS.log` — one file per app 
 **Log format:** `%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s`
 
 **Logger groups** (defined in `app/logging_config.py`):
+
 - `app.scraper`, `app.scrapers` — scraping subsystem
 - `app.services.llm_service` — LLM calls
 - `app.services.scheduler` — background jobs
@@ -90,6 +96,7 @@ Session logs are written to `logs/app-YYYYMMDD-HHMMSS.log` — one file per app 
 - `uvicorn`, `uvicorn.access`, `apscheduler` — third-party (default `WARNING` to suppress noisy access logs)
 
 **Level env vars** (`.env`):
+
 ```
 LOG_LEVEL=INFO            # controls all app.* loggers; set DEBUG for verbose output
 LOG_LEVEL_UVICORN=WARNING # controls uvicorn and apscheduler loggers

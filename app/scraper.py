@@ -419,7 +419,28 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
         import pandas as pd
         from jobspy import scrape_jobs  # import inside function for easier mocking
 
+        # Merge target-derived search terms when similarity is enabled
+        _extra = []
+        with SessionLocal() as _sim_sess:
+            try:
+                from app.services.similarity_service import derive_search_terms_from_targets
+                from app.repository import JobRepository as _Repo
+                _sw = _Repo(_sim_sess).get_similarity_weights()
+                if _sw.is_enabled:
+                    _extra = derive_search_terms_from_targets(_sim_sess, config)
+                    if _extra:
+                        logger.info("Similarity: merging %d extra search terms from targets: %s", len(_extra), _extra)
+            except Exception as _sim_exc:
+                logger.debug("Similarity search-term merge skipped: %s", _sim_exc)
+                _extra = []
+
         search_terms = build_search_terms(config)
+        # Merge without duplicates (case-insensitive)
+        existing_lower = {t.lower() for t in search_terms}
+        for term in _extra:
+            if term.lower() not in existing_lower:
+                search_terms.append(term)
+                existing_lower.add(term.lower())
         country = getattr(config, "country", None) or "israel"
         max_age_hours = getattr(config, "max_age_hours", None) or 72
         results_wanted = getattr(config, "results_wanted", None) or 50
@@ -544,6 +565,18 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
             inserted_ids: list[int] = []
             profile = repo.get_profile()
 
+            # Build similarity target profile once per scrape run
+            _sim_profile = None
+            _sim_weights = None
+            _below_threshold_count = 0
+            try:
+                from app.services.similarity_service import build_target_profile as _build_profile, compute_similarity as _compute_sim
+                _sim_weights = repo.get_similarity_weights()
+                if _sim_weights.is_enabled:
+                    _sim_profile = _build_profile(session)
+            except Exception as _exc:
+                logger.debug("Similarity setup skipped: %s", _exc)
+
             stopped = False
             for _, row_series in df.iterrows():
                 if stop_event is not None and stop_event.is_set():
@@ -611,6 +644,7 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
                                     name_normalized=_name_norm,
                                     name_display=_company_name,
                                     sector=_enrichment.get("sector"),
+                                    subsector=_enrichment.get("subsector"),
                                     company_type=_enrichment.get("company_type"),
                                     what_they_do=_enrichment.get("what_they_do"),
                                 )
@@ -679,6 +713,19 @@ def run_scrape(config, skip_intelligence: bool = False, sites: Optional[list[str
                                 _exc,
                             )
                             score_failed += 1
+
+                # Similarity scoring
+                if _sim_profile is not None and _sim_weights is not None:
+                    try:
+                        _sim_result = _compute_sim(created, _sim_profile, _sim_weights)
+                        created.similarity_score = _sim_result["score"]
+                        import json as _json2
+                        created.similarity_breakdown_json = _json2.dumps(_sim_result["breakdown"])
+                        session.commit()
+                        if _sim_weights.min_score_threshold is not None and _sim_result["score"] < _sim_weights.min_score_threshold:
+                            _below_threshold_count += 1
+                    except Exception as _sim_exc:
+                        logger.debug("Similarity scoring failed for job_id=%s: %s", created.id, _sim_exc)
 
                 _row_cb()
 

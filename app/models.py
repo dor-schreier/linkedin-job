@@ -48,6 +48,7 @@ class Company(Base):
     name_normalized = Column(String(300), unique=True, nullable=False)
     name_display = Column(String(300), nullable=False)
     sector = Column(String(150), nullable=True)
+    subsector = Column(String(150), nullable=True)
     company_type = Column(String(50), nullable=True)  # corporate/startup/scaleup/agency/non-profit/government/unknown
     what_they_do = Column(Text, nullable=True)
     enriched_at = Column(DateTime, server_default=func.now(), nullable=False)
@@ -82,7 +83,14 @@ class Job(Base):
     summary_general_description = Column(Text, nullable=True)
     summary_generated_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False, server_default="1")
+    is_target = Column(Boolean, default=False, nullable=False, server_default="0")
+    similarity_score = Column(Integer, nullable=True)
+    similarity_breakdown_json = Column(Text, nullable=True)
     last_checked_at = Column(DateTime, nullable=True)
+    # Set only when a cleanup check reached a definitive verdict (active/inactive),
+    # NOT on blocked/unknown results — so limited batches can skip recently-validated
+    # jobs while still retrying blocked ones. Distinct from last_checked_at.
+    last_validated_at = Column(DateTime, nullable=True)
     is_rejected = Column(Boolean, default=False, nullable=False, server_default="0")
     rejected_at = Column(DateTime, nullable=True)
     rejected_by_rule_id = Column(Integer, ForeignKey("reject_rules.id", ondelete="SET NULL"), nullable=True)
@@ -309,6 +317,13 @@ class SchedulerConfig(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     interval_hours = Column(Integer, default=6, nullable=False)
     is_enabled = Column(Boolean, default=True, nullable=False)
+    # JSON array of job sources the cleanup run should check (e.g. ["indeed", "comeet"]).
+    # NULL means "all sources" (backward-compatible default).
+    cleanup_sources = Column(Text, nullable=True)
+    # Max number of jobs to check per cleanup run; NULL means "no limit" (all).
+    cleanup_limit = Column(Integer, nullable=True)
+    # Skip jobs validated within the past N hours during cleanup; NULL/0 = don't skip.
+    cleanup_skip_validated_hours = Column(Integer, nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
@@ -344,6 +359,20 @@ class TailoredCV(Base):
     docx_path = Column(Text, nullable=True)
     model_used = Column(Text, nullable=True)
     generated_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+
+class SimilarityWeights(Base):
+    """Single-row table storing the spider-chart weights for the similarity engine."""
+    __tablename__ = "similarity_weights"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    weight_title = Column(Float, default=1.0, nullable=False, server_default="1.0")
+    weight_skills = Column(Float, default=1.0, nullable=False, server_default="1.0")
+    weight_seniority = Column(Float, default=1.0, nullable=False, server_default="1.0")
+    weight_sector = Column(Float, default=1.0, nullable=False, server_default="1.0")
+    is_enabled = Column(Boolean, default=True, nullable=False, server_default="1")
+    min_score_threshold = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class UploadedCV(Base):

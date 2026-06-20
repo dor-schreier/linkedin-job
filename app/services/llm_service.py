@@ -134,17 +134,54 @@ LINKEDIN_ANALYSIS_SAFE_FALLBACK: dict[str, Any] = {
 COMPANY_ENRICHMENT_SYSTEM_PROMPT = (
     "You are a company research analyst. Given a company name and any available metadata, "
     "respond ONLY with valid JSON, no other text, no markdown code fences.\n"
-    'Schema: {"sector": "<str>", "company_type": "<corporate|startup|scaleup|agency|non-profit|government|unknown>", '
+    'Schema: {"sector": "<str>", "subsector": "<str>", "company_type": "<corporate|startup|scaleup|agency|non-profit|government|unknown>", '
     '"what_they_do": "<1-3 sentences>"}\n'
-    "sector: industry sector (e.g. 'Fintech', 'Healthcare', 'Cybersecurity', 'E-commerce', 'SaaS', 'EdTech', 'Defense', 'Consulting').\n"
-    "company_type: one of the exact enum values — corporate=large established company, startup=early-stage venture, "
-    "scaleup=growing startup, agency=consulting/services firm, non-profit=NGO/charity, government=public sector, unknown=unclear.\n"
+    "ALL FOUR fields are REQUIRED — never omit any of them, especially company_type.\n"
+    "\n"
+    "company_type — CRITICAL, classify this for EVERY company. Do not default to 'unknown'; "
+    "infer it from the company size, funding stage, age, and business model using the job description and live "
+    "web search. Use exactly one of these values:\n"
+    "  corporate   — large, established company (public, enterprise, or 1000+ employees)\n"
+    "  scaleup     — growing, post-Series-B / well-funded startup past early stage\n"
+    "  startup     — early-stage venture (pre-seed to Series A, small team)\n"
+    "  agency      — consulting / services / staffing firm\n"
+    "  non-profit  — NGO / charity / humanitarian\n"
+    "  government  — public sector / government body\n"
+    "  unknown     — ONLY as an absolute last resort, when name, job description, AND web search all give no signal.\n"
+    "\n"
+    "sector: MUST be exactly one of these 14 values (use the 'Includes' aliases to map a company in):\n"
+    "  Cybersecurity & Privacy — Cybersecurity, Industrial Cybersecurity, Data Security, Identity and Access Management\n"
+    "  Core Software, IT & Infrastructure — SaaS, Software, Technology, IT Services, Cloud Computing, Information Technology, "
+    "Software Development, Data Storage, Database Technology, Quantum Computing, Blockchain, Infrastructure, Networking, "
+    "Data Storage & Management, Storage, IT Operations, Software Testing\n"
+    "  Fintech & Financial Services — Fintech, Financial Services, Insurtech, Insurance, Blockchain, Banking, Finance, "
+    "Trade Finance Technology, Payments, Asset Management, Quant Trading, Regtech\n"
+    "  HealthTech, Life Sciences & Healthcare — Healthcare, Biotechnology, Medical Devices, Clinical Research, "
+    "Pharmaceuticals, Life Sciences\n"
+    "  Hardware, Semiconductors & DeepTech — Semiconductors, Semiconductor Design, Semiconductor Manufacturing Equipment, "
+    "Semiconductor Design Software, Semiconductor Equipment, Hardware, Consumer Electronics, Robotics, IoT\n"
+    "  Aerospace, Defense & GovTech — Defense, Aerospace, Aerospace and Defense, Government\n"
+    "  HR Tech & Human Resources — HR Tech, Human Resources, Recruitment, Human Resources Technology, IT Staffing & Consulting\n"
+    "  E-commerce, Retail & Consumer Goods — E-commerce, Retail Technology, Retail, Consumer Goods, Consumer Packaged Goods, "
+    "Home Decor, Apparel Manufacturing, Cosmetics, Tobacco, Cannabis\n"
+    "  Automotive, Mobility & Logistics — Automotive, Automotive Technology, Transportation, Transportation Technology, "
+    "Mobility, Logistics, Logistics Tech, Fleet Management Software, Maritime Technology\n"
+    "  Marketing, Advertising & Social Media — AdTech, Advertising Technology, Marketing, Marketing Technology, "
+    "Marketing & Advertising, Mobile Marketing, Digital Advertising, Social Media, Customer Engagement, Customer Service Software\n"
+    "  Media, Entertainment & Gaming — Gaming, Mobile Gaming, Video Games, Media, Media & Entertainment, Media and Entertainment\n"
+    "  Professional Services & Business Tools — Consulting, Venture Capital, Business Services, Business Process Management, LegalTech\n"
+    "  Industry, Energy & Sustainability — Energy, Renewable Energy, Construction Tech, Manufacturing, Industrial Manufacturing, "
+    "Industrial, Industrial Conglomerate, AgriTech, Agrochemicals, FoodTech, Food & Beverage, Water Technology\n"
+    "  Education & Social Impact — EdTech, Humanitarian Aid, Non-profit\n"
+    "Output the sector name exactly as written above (left of the em dash). Use 'Other' only if none of the 14 fit.\n"
+    "subsector: free-form, more specific label within the sector — prefer the matching 'Includes' alias "
+    "(e.g. 'Fintech', 'Semiconductor Design', 'Medical Devices', 'Cybersecurity', 'E-commerce'). Use empty string if unclear.\n"
     "what_they_do: concise plain-language description of the company product/service/business model. "
     "If you have no reliable information, use empty string \"\".\n"
-    "sector: if unknown use \"unknown\".\n"
     "NEVER write apologies, explanations, or 'I cannot find' text — use empty string or 'unknown' instead.\n"
-    "If a <web_context> block is present, treat it as primary evidence and reference specific products, services, or "
-    "details from it. Only fall back to training knowledge when the snippets are silent on a field."
+    "If a <web_context> block is present (e.g. the job description), treat it as primary evidence and reference specific "
+    "products, services, or details from it. When live web search results are available, combine them with the "
+    "<web_context> to verify and enrich your answer. Only fall back to training knowledge when both are silent on a field."
 )
 
 JOB_SUMMARY_SYSTEM_PROMPT = (
@@ -227,6 +264,15 @@ MANUAL_JOB_EXTRACTION_SAFE_FALLBACK: dict[str, Any] = {
     "description": "",
 }
 
+COVER_LETTER_SYSTEM_PROMPT = (
+    "You are a professional cover letter writer. Write a concise, personalized cover letter "
+    "(3-4 paragraphs, plain text, no markdown fences, no placeholders) based on the candidate "
+    "summary and job description provided. The letter should open with a strong hook referencing "
+    "the specific role and company, highlight the candidate's most relevant experience and skills, "
+    "and close with a confident call to action. Tone: professional but human. "
+    "Do not invent credentials the candidate doesn't have."
+)
+
 COMEET_JOB_EXTRACTION_SYSTEM_PROMPT = (
     "You are a job posting data extractor. Extract structured fields from the visible text of "
     "a Comeet job posting page and respond ONLY with valid JSON, no other text, no markdown code fences.\n"
@@ -244,7 +290,7 @@ COMEET_JOB_EXTRACTION_SYSTEM_PROMPT = (
     '  "company_description": "<str or null — brief description of the company from the posting>"\n'
     "}\n"
     "Rules:\n"
-    "- salary_min / salary_max: raw numeric values only (e.g. 80000.0), no symbols; null if not listed.\n"
+    "- salary_min / salary_max: raw numeric values only (e.g. 80100.0), no symbols; null if not listed.\n"
     "- salary_currency: ISO code or symbol (e.g. 'USD', '$') when salary is present; null otherwise.\n"
     "- is_remote: true ONLY when the posting explicitly uses 'remote' language; false otherwise.\n"
     "- date_posted: ISO YYYY-MM-DD if a posting date appears; null if absent.\n"
@@ -330,24 +376,33 @@ def _chat_complete(
     *,
     temperature: float | None = None,
     json_mode: bool = True,
+    use_grounding: bool = False,
 ) -> str:
     """Issue a chat completion against the configured provider and return the raw text.
 
     Branches on LLM_PROVIDER: Vertex AI uses google-genai's generate_content; Groq/Ollama
     use the OpenAI-compatible chat.completions API. json_mode hints the model to emit
     application/json (Vertex only — OpenAI-path callers already strip code fences).
+    use_grounding enables native Google Search grounding on Vertex AI (no-op on other providers).
     """
     provider = os.environ.get("LLM_PROVIDER", "groq").lower()
     model = _get_model(tier)
     if provider == "vertexai":
+        from google.genai import types as genai_types
         client = _get_vertex_client()
         config: dict[str, Any] = {"max_output_tokens": max_tokens}
         if system:
             config["system_instruction"] = system
-        if json_mode:
+        # Controlled generation (response_mime_type) is incompatible with the Search
+        # tool on Vertex AI — requesting both yields a 400 INVALID_ARGUMENT. When
+        # grounding is on, skip the JSON mime type and rely on the prompt +
+        # _load_llm_json (which tolerates code fences/markdown) to recover the JSON.
+        if json_mode and not use_grounding:
             config["response_mime_type"] = "application/json"
         if temperature is not None:
             config["temperature"] = temperature
+        if use_grounding:
+            config["tools"] = [genai_types.Tool(google_search=genai_types.GoogleSearch())]
         response = client.models.generate_content(
             model=model,
             contents=user,
@@ -726,6 +781,9 @@ def enrich_company(
     if company_description:
         parts.append(f"Company description: {company_description[:500]}")
 
+    provider = os.environ.get("LLM_PROVIDER", "groq").lower()
+    use_grounding = provider == "vertexai"
+
     _COMPANY_SECTION_MARKERS = (
         "who we are", "what we do", "about us", "about the company", "about the team",
         "our mission", "our vision", "we are a ", "we're a ", "we build", "we develop",
@@ -734,7 +792,18 @@ def enrich_company(
     desc_has_company = job_description and any(
         m in job_description.lower() for m in _COMPANY_SECTION_MARKERS
     )
-    if desc_has_company:
+    if use_grounding:
+        # Vertex AI: live Google Search grounding is the primary evidence; the job
+        # description is always supplied as additional context for the prompt.
+        if job_description:
+            parts.append(f"\n<web_context>\n{job_description[:2000]}\n</web_context>")
+            logger.debug(
+                "enrich_company: vertexai grounding + job description for %r (%d chars)",
+                company_name, len(job_description),
+            )
+        else:
+            logger.debug("enrich_company: vertexai grounding active for %r (no job description)", company_name)
+    elif desc_has_company:
         parts.append(f"\n<web_context>\n{job_description[:2000]}\n</web_context>")
         logger.debug("enrich_company: using job description for %r (%d chars)", company_name, len(job_description))
     else:
@@ -753,7 +822,8 @@ def enrich_company(
             tier="recommend",
             system=COMPANY_ENRICHMENT_SYSTEM_PROMPT,
             user=user_prompt,
-            max_tokens=256,
+            max_tokens=300,
+            use_grounding=use_grounding,
         )
         data = _load_llm_json(content)
         if not isinstance(data, dict):
@@ -822,6 +892,62 @@ def extract_job_metadata(text: str, url: str) -> dict[str, Any]:
     except Exception as exc:
         logger.error("extract_job_metadata failed for %r: %s", url, exc)
         return dict(MANUAL_JOB_EXTRACTION_SAFE_FALLBACK)
+
+
+def generate_cover_letter(job, profile, uploaded) -> str:
+    """Generate a personalized cover letter for a job. Returns plain text. Never raises — returns empty string on failure."""
+    from app.models import UploadedCV
+
+    parts = [
+        f"Job Title: {job.title}",
+        f"Company: {job.company}",
+        f"Location: {job.location or 'n/a'}",
+        f"\nJob Description (first 2000 chars):\n{(job.description or '')[:2000]}",
+    ]
+
+    if profile:
+        parts += [
+            "\nCandidate Profile:",
+            f"- Name: {getattr(profile, 'full_name', None) or 'n/a'}",
+            f"- Current title: {getattr(profile, 'current_title', None) or 'n/a'}",
+            f"- Target title: {getattr(profile, 'target_title', None) or 'n/a'}",
+            f"- Years of experience: {getattr(profile, 'years_experience', None) or 'n/a'}",
+            f"- Skills: {getattr(profile, 'skills', None) or 'n/a'}",
+        ]
+
+    if uploaded and uploaded.parsed_json:
+        try:
+            import json as _json
+            cv_data = _json.loads(uploaded.parsed_json)
+            about = cv_data.get("about") or ""
+            if about:
+                parts.append(f"\nCandidate About/Summary:\n{about[:1000]}")
+            experience = cv_data.get("experience") or []
+            if experience:
+                exp_lines = []
+                for e in experience[:4]:
+                    title = e.get("title") or ""
+                    company = e.get("company") or ""
+                    desc = (e.get("description") or "")[:200]
+                    exp_lines.append(f"  - {title} at {company}: {desc}")
+                parts.append("\nRecent Experience:\n" + "\n".join(exp_lines))
+        except Exception:
+            pass
+
+    user_prompt = "\n".join(parts)
+
+    try:
+        _rate_limit()
+        return _chat_complete(
+            tier="recommend",
+            system=COVER_LETTER_SYSTEM_PROMPT,
+            user=user_prompt,
+            max_tokens=10000,
+            json_mode=False,
+        ).strip()
+    except Exception as e:
+        logger.error("generate_cover_letter failed for job %r at %r: %s", getattr(job, "title", "?"), getattr(job, "company", "?"), e)
+        return ""
 
 
 def extract_job_summary(job) -> dict[str, Any] | None:
